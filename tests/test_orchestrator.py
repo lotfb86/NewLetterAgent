@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -84,7 +83,12 @@ class _FakeWriter:
         issue_date = kwargs["issue_date"]
         return _sample_newsletter_payload(issue_date=issue_date)
 
-    def revise_newsletter(self, *, current_draft: dict[str, Any], feedback_text: str) -> dict[str, Any]:
+    def revise_newsletter(
+        self,
+        *,
+        current_draft: dict[str, Any],
+        feedback_text: str,
+    ) -> dict[str, Any]:
         revised = dict(current_draft)
         revised["intro"] = f"{current_draft.get('intro', '')} ({feedback_text})"
         return revised
@@ -150,7 +154,6 @@ class _FakeSender:
         return {"id": broadcast_id, "status": status}
 
 
-
 def _build_config(tmp_path: Path, *, enable_dry_run: bool = True) -> AppConfig:
     data_dir = tmp_path / "data"
     return AppConfig(
@@ -177,13 +180,19 @@ def _build_config(tmp_path: Path, *, enable_dry_run: bool = True) -> AppConfig:
     )
 
 
-
 def _build_orchestrator(
     tmp_path: Path,
     *,
     sender_dry_run: bool,
     invalid_renderer: bool = False,
-) -> tuple[NewsletterOrchestrator, DraftManager, RunStateStore, _FakeSlackClient, _FakeSender, AppConfig]:
+) -> tuple[
+    NewsletterOrchestrator,
+    DraftManager,
+    RunStateStore,
+    _FakeSlackClient,
+    _FakeSender,
+    AppConfig,
+]:
     config = _build_config(tmp_path, enable_dry_run=sender_dry_run)
     bootstrap_runtime_paths(config)
 
@@ -210,12 +219,10 @@ def _build_orchestrator(
     return orchestrator, draft_manager, run_state, slack_client, sender, config
 
 
-
 def _latest_run_id(run_state: RunStateStore) -> str:
     runs = run_state.list_runs()
     assert runs
     return runs[-1].run_id
-
 
 
 def _sample_newsletter_payload(*, issue_date: str) -> dict[str, Any]:
@@ -241,7 +248,6 @@ def _sample_newsletter_payload(*, issue_date: str) -> dict[str, Any]:
     }
 
 
-
 def test_trigger_run_creates_draft_and_posts_preview(tmp_path: Path) -> None:
     orchestrator, draft_manager, run_state, slack_client, sender, _ = _build_orchestrator(
         tmp_path,
@@ -263,7 +269,6 @@ def test_trigger_run_creates_draft_and_posts_preview(tmp_path: Path) -> None:
     assert draft is not None
     assert draft.draft_version == 1
     assert draft.draft_status == DraftStatus.PENDING_REVIEW
-
 
 
 def test_send_pipeline_completes_and_writes_backups(tmp_path: Path) -> None:
@@ -291,7 +296,6 @@ def test_send_pipeline_completes_and_writes_backups(tmp_path: Path) -> None:
 
     assert config.run_state_db_path.with_suffix(".db.bak").exists()
     assert list((config.brain_file_path.parent / "archive").glob("published_stories_*.md"))
-
 
 
 def test_full_dry_run_path_skips_live_send(tmp_path: Path) -> None:
@@ -334,7 +338,6 @@ def test_send_validation_failure_stays_send_requested(tmp_path: Path) -> None:
     assert run.stage == RunStage.SEND_REQUESTED
 
 
-
 def test_include_late_update_injects_into_draft_json(tmp_path: Path) -> None:
     orchestrator, draft_manager, run_state, _slack_client, _sender, _config = _build_orchestrator(
         tmp_path,
@@ -363,7 +366,6 @@ def test_include_late_update_injects_into_draft_json(tmp_path: Path) -> None:
     assert "Late Team Update" in titles
 
 
-
 def test_replay_resumes_send_from_send_requested(tmp_path: Path) -> None:
     orchestrator, draft_manager, run_state, _slack_client, sender, _config = _build_orchestrator(
         tmp_path,
@@ -386,7 +388,6 @@ def test_replay_resumes_send_from_send_requested(tmp_path: Path) -> None:
     assert run.stage == RunStage.BRAIN_UPDATED
 
 
-
 def test_second_send_attempt_is_idempotently_rejected(tmp_path: Path) -> None:
     orchestrator, draft_manager, run_state, _slack_client, sender, _config = _build_orchestrator(
         tmp_path,
@@ -406,3 +407,23 @@ def test_second_send_attempt_is_idempotently_rejected(tmp_path: Path) -> None:
 
     brain_entries = (tmp_path / "data" / "published_stories.md").read_text(encoding="utf-8")
     assert brain_entries.count("Agent startup raises $25M") == 1
+
+
+def test_reset_starts_new_run_and_replaces_active_draft(tmp_path: Path) -> None:
+    orchestrator, draft_manager, run_state, _slack_client, _sender, _config = _build_orchestrator(
+        tmp_path,
+        sender_dry_run=True,
+    )
+    first = orchestrator.trigger_run(trigger="manual")
+    assert first.accepted
+    first_run_id = first.run_id or _latest_run_id(run_state)
+
+    reset = orchestrator.reset_and_trigger_run(requested_by="tester")
+    assert reset.accepted
+    second_run_id = reset.run_id or _latest_run_id(run_state)
+    assert second_run_id != first_run_id
+
+    current = draft_manager.get_current_draft()
+    assert current is not None
+    assert current.run_id == second_run_id
+    assert current.draft_version == 1

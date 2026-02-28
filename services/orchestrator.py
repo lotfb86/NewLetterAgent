@@ -147,10 +147,8 @@ class NewsletterOrchestrator:
 
     def include_late_update(self, *, thread_ts: str) -> OrchestrationOutcome:
         """Inject a late team update into active draft and redraft automatically."""
-        late_text = self._context_state.pop_late_update(thread_ts)
-        if late_text is None:
-            return OrchestrationOutcome(accepted=False, reason="no_late_update")
-
+        # Check preconditions before consuming the late update so it can be
+        # retried if any guard fails.
         current = self._draft_manager.get_current_draft()
         if current is None or current.draft_json is None:
             return OrchestrationOutcome(accepted=False, reason="no_active_draft")
@@ -161,6 +159,10 @@ class NewsletterOrchestrator:
         if not self._draft_manager.has_revision_capacity():
             self._draft_manager.mark_max_revisions_reached()
             return OrchestrationOutcome(accepted=False, reason="max_revisions_reached")
+
+        late_text = self._context_state.pop_late_update(thread_ts)
+        if late_text is None:
+            return OrchestrationOutcome(accepted=False, reason="no_late_update")
 
         payload = _parse_json_dict(current.draft_json)
         team_updates = payload.get("team_updates")
@@ -274,7 +276,7 @@ class NewsletterOrchestrator:
 
         draft_ts = self._post_draft_preview(
             newsletter_payload=newsletter_payload,
-            header=f"Newsletter Draft — Week of {issue_date}",
+            header=f"Newsletter Draft - Week of {issue_date}",
             footer=(
                 "Review this draft. Reply with feedback to request changes, "
                 "or say *approved* to send."

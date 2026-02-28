@@ -8,7 +8,6 @@ from pathlib import Path
 from services.run_state import RunStateStore
 
 
-
 def test_run_lock_acquire_and_release(tmp_path: Path) -> None:
     store = RunStateStore(tmp_path / "state.db")
     store.initialize()
@@ -22,7 +21,6 @@ def test_run_lock_acquire_and_release(tmp_path: Path) -> None:
 
     store.release_run_lock("run-1")
     assert store.get_locked_run_id() is None
-
 
 
 def test_patch_run_payload_merges_values(tmp_path: Path) -> None:

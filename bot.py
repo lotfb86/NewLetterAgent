@@ -82,7 +82,12 @@ def _build_runtime(config: AppConfig) -> BotRuntime:
     sender = ResendSender(config)
 
     app = App(token=config.slack_bot_token)
-    bot_user_id = _resolve_bot_user_id(app.client.auth_test())
+    auth_payload: Any
+    try:
+        auth_payload = app.client.auth_test()
+    except Exception:  # noqa: BLE001
+        auth_payload = {}
+    bot_user_id = _resolve_bot_user_id(auth_payload)
 
     orchestrator = NewsletterOrchestrator(
         config=config,

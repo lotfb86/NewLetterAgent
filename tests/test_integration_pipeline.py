@@ -8,7 +8,6 @@ from models import DraftStatus, RunStage
 from tests.test_orchestrator import _build_orchestrator, _latest_run_id
 
 
-
 def test_integration_full_dry_run_path(tmp_path: Path) -> None:
     orchestrator, draft_manager, run_state, _slack_client, sender, _config = _build_orchestrator(
         tmp_path,
@@ -24,7 +23,6 @@ def test_integration_full_dry_run_path(tmp_path: Path) -> None:
     assert send_outcome.accepted
     assert sender.sent == 1
     assert run_state.get_run(run_id).stage == RunStage.BRAIN_UPDATED  # type: ignore[union-attr]
-
 
 
 def test_integration_live_send_and_single_brain_update(tmp_path: Path) -> None:

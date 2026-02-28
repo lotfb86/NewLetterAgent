@@ -7,7 +7,6 @@ import threading
 from services.command_controller import CommandController, CommandResult
 
 
-
 def test_manual_run_rejects_when_command_already_in_progress() -> None:
     entered = threading.Event()
     release = threading.Event()
@@ -41,7 +40,6 @@ def test_manual_run_rejects_when_command_already_in_progress() -> None:
     assert second.accepted is False
     assert second.reason == "run_in_progress"
     assert result_holder["first"].accepted is True
-
 
 
 def test_reset_and_replay_passthrough() -> None:

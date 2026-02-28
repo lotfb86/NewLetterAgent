@@ -20,7 +20,6 @@ class _FakeResendClient:
         return {"id": f"contact:{email}:{audience_id}"}
 
 
-
 def _set_env(monkeypatch: Any) -> None:
     monkeypatch.setenv("RESEND_API_KEY", "re_test")
     monkeypatch.setenv("RESEND_AUDIENCE_ID", "aud_test")
@@ -29,7 +28,6 @@ def _set_env(monkeypatch: Any) -> None:
         "https://newsletter.example.com,https://site.example.com",
     )
     subscribe._REQUEST_LOG.clear()  # noqa: SLF001
-
 
 
 def test_options_preflight_allows_allowed_origin(monkeypatch: Any) -> None:
@@ -45,7 +43,6 @@ def test_options_preflight_allows_allowed_origin(monkeypatch: Any) -> None:
     assert response.headers["Access-Control-Allow-Origin"] == "https://newsletter.example.com"
 
 
-
 def test_options_preflight_rejects_unknown_origin(monkeypatch: Any) -> None:
     _set_env(monkeypatch)
 
@@ -56,7 +53,6 @@ def test_options_preflight_rejects_unknown_origin(monkeypatch: Any) -> None:
     )
 
     assert response.status_code == 403
-
 
 
 def test_post_rejects_invalid_email(monkeypatch: Any) -> None:
@@ -70,7 +66,6 @@ def test_post_rejects_invalid_email(monkeypatch: Any) -> None:
 
     assert response.status_code == 400
     assert response.body["error"] == "invalid_email"
-
 
 
 def test_post_handles_duplicate_email(monkeypatch: Any) -> None:
@@ -87,7 +82,6 @@ def test_post_handles_duplicate_email(monkeypatch: Any) -> None:
     assert response.status_code == 200
     assert response.body["success"] is True
     assert response.body["duplicate"] is True
-
 
 
 def test_post_rate_limits_by_client_ip(monkeypatch: Any) -> None:
@@ -112,7 +106,6 @@ def test_post_rate_limits_by_client_ip(monkeypatch: Any) -> None:
     assert limited_status == 429
 
 
-
 def test_post_honeypot_sinks_bot_without_provider_call(monkeypatch: Any) -> None:
     _set_env(monkeypatch)
     fake_client = _FakeResendClient()
@@ -127,7 +120,6 @@ def test_post_honeypot_sinks_bot_without_provider_call(monkeypatch: Any) -> None
     assert response.status_code == 200
     assert response.body["success"] is True
     assert fake_client.called == 0
-
 
 
 def test_post_rejects_disallowed_origin(monkeypatch: Any) -> None:

@@ -33,7 +33,6 @@ class _FakeOrchestrator:
         return []
 
 
-
 def _build_config(tmp_path: Path) -> AppConfig:
     data_dir = tmp_path / "data"
     return AppConfig(
@@ -60,7 +59,6 @@ def _build_config(tmp_path: Path) -> AppConfig:
     )
 
 
-
 def test_scheduler_start_sets_jobs_and_reconciles(tmp_path: Path) -> None:
     orchestrator = _FakeOrchestrator()
     runtime = SchedulerRuntime(
@@ -74,7 +72,6 @@ def test_scheduler_start_sets_jobs_and_reconciles(tmp_path: Path) -> None:
         assert runtime.next_weekly_run_at() is not None
     finally:
         runtime.shutdown()
-
 
 
 def test_scheduler_jobs_invoke_orchestrator_methods(tmp_path: Path) -> None:
@@ -94,7 +91,6 @@ def test_scheduler_jobs_invoke_orchestrator_methods(tmp_path: Path) -> None:
         assert orchestrator.last_next_run is None or orchestrator.last_next_run.tzinfo is not None
     finally:
         runtime.shutdown()
-
 
 
 def test_next_weekly_run_is_utc_when_available(tmp_path: Path) -> None:

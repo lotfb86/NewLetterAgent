@@ -377,17 +377,20 @@ class RunStateStore:
 
     def try_acquire_run_lock(self, run_id: str) -> bool:
         """Acquire singleton run lock for this run ID."""
-        with self._connect() as conn:
-            existing = conn.execute("SELECT run_id FROM run_lock WHERE lock_id = 1").fetchone()
-            if existing is not None:
-                return False
-            conn.execute(
-                """
-                INSERT INTO run_lock(lock_id, run_id, acquired_at)
-                VALUES (1, ?, ?)
-                """,
-                (run_id, _now_iso()),
-            )
+        try:
+            with self._connect() as conn:
+                existing = conn.execute("SELECT run_id FROM run_lock WHERE lock_id = 1").fetchone()
+                if existing is not None:
+                    return False
+                conn.execute(
+                    """
+                    INSERT INTO run_lock(lock_id, run_id, acquired_at)
+                    VALUES (1, ?, ?)
+                    """,
+                    (run_id, _now_iso()),
+                )
+        except sqlite3.IntegrityError:
+            return False
         return True
 
     def release_run_lock(self, run_id: str) -> None:
