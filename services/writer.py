@@ -12,8 +12,10 @@ from services.schemas import NEWSLETTER_SCHEMA
 from services.validator import ContentValidationError, extract_json_payload, validate_json_payload
 
 WRITER_SYSTEM_PROMPT = (
-    "You are a newsletter writer. Return valid JSON only. "
-    "Do not include markdown fences or any extra commentary."
+    "You are a newsletter writer. "
+    "Output ONLY a single JSON object. "
+    "Do NOT include markdown code fences, commentary, or any text "
+    "before or after the JSON object."
 )
 
 VOICE_STYLE_GUIDE = (

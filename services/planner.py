@@ -13,8 +13,10 @@ from services.schemas import PLANNER_SCHEMA
 from services.validator import ContentValidationError, extract_json_payload, validate_json_payload
 
 PLANNER_SYSTEM_PROMPT = (
-    "You are a newsletter planning assistant. Return valid JSON only. "
-    "Do not include markdown fences or prose outside the JSON object."
+    "You are a newsletter planning assistant. "
+    "Output ONLY a single JSON object. "
+    "Do NOT include markdown code fences, commentary, or any text "
+    "before or after the JSON object."
 )
 
 PLANNER_STYLE_GUIDANCE = (
