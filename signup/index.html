@@ -3,22 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Subscribe | This Week in AI</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"
-      rel="stylesheet"
-    />
+    <title>Stay in the loop - Ruh</title>
     <style>
       :root {
-        --bg-1: #f8f4e9;
-        --bg-2: #ffe2bf;
-        --card: #fffaf2;
-        --ink: #1e1a12;
-        --accent: #d16123;
-        --accent-dark: #8f3b12;
-        --muted: #5f5546;
+        --ruh-purple: #b000ff;
+        --ruh-magenta: #df00ff;
+        --ruh-text-dark: #111827;
+        --ruh-text-light: #6b7280;
+        --ruh-bg: #fafafa;
+        --ruh-error: #ef4444;
+        --ruh-success: #10b981;
       }
 
       * {
@@ -27,186 +21,319 @@
 
       body {
         margin: 0;
-        min-height: 100vh;
-        font-family: "Space Grotesk", sans-serif;
-        background: radial-gradient(circle at 20% 10%, var(--bg-2) 0, transparent 35%),
-          radial-gradient(circle at 90% 90%, #f2c98f 0, transparent 30%),
-          linear-gradient(135deg, var(--bg-1), #f7ecd5 45%, #fceecf);
-        color: var(--ink);
-        display: grid;
-        place-items: center;
         padding: 1.25rem;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: var(--ruh-bg);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
       }
 
-      .shell {
-        width: min(560px, 100%);
-        background: var(--card);
-        border: 1px solid #e9d9be;
-        border-radius: 22px;
-        padding: 2rem;
-        box-shadow: 0 20px 45px rgba(59, 32, 8, 0.15);
+      .signup-modal {
+        background: #ffffff;
+        width: 100%;
+        max-width: 420px;
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(176, 0, 255, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+        text-align: center;
+        animation: floatUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        transform: translateY(20px);
+        opacity: 0;
       }
 
-      h1 {
-        margin-top: 0;
-        margin-bottom: 0.6rem;
-        font-size: clamp(1.7rem, 3.4vw, 2.3rem);
-        letter-spacing: -0.03em;
+      @keyframes floatUp {
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
       }
 
-      p {
-        margin-top: 0;
-        color: var(--muted);
+      .signup-modal h2 {
+        color: var(--ruh-text-dark);
+        margin: 0 0 12px;
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+
+      .signup-modal p {
+        color: var(--ruh-text-light);
+        font-size: 15px;
         line-height: 1.5;
+        margin: 0 0 32px;
       }
 
       form {
-        margin-top: 1.4rem;
-        display: grid;
-        gap: 0.8rem;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
       }
 
-      label {
-        font-size: 0.9rem;
-        font-weight: 700;
+      .input-wrapper {
+        text-align: left;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
       }
 
       input[type="email"] {
         width: 100%;
-        border: 1px solid #dbc4a4;
+        padding: 14px 16px;
+        border: 1px solid #e5e7eb;
         border-radius: 12px;
-        padding: 0.85rem 0.9rem;
-        font: inherit;
-        color: var(--ink);
-        background: #fff;
+        font-size: 15px;
+        transition: all 0.2s ease;
+        outline: none;
       }
 
       input[type="email"]:focus {
-        outline: 2px solid #f1ab74;
-        border-color: #f1ab74;
+        border-color: var(--ruh-purple);
+        box-shadow: 0 0 0 3px rgba(176, 0, 255, 0.15);
       }
 
       .honeypot {
         position: absolute;
         left: -9999px;
+        opacity: 0;
+        pointer-events: none;
       }
 
       button {
-        border: 0;
+        background: linear-gradient(135deg, var(--ruh-purple), var(--ruh-magenta));
+        color: #ffffff;
+        border: none;
+        padding: 14px 24px;
         border-radius: 12px;
-        padding: 0.82rem 1rem;
-        font: inherit;
-        font-weight: 700;
-        background: linear-gradient(135deg, var(--accent), #f08c2a);
-        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
         cursor: pointer;
-        transition: transform 120ms ease, filter 120ms ease;
+        transition: all 0.2s ease;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 50px;
       }
 
-      button:hover {
-        filter: brightness(1.04);
+      button:hover:not(:disabled) {
         transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(176, 0, 255, 0.3);
       }
 
       button:disabled {
-        cursor: not-allowed;
         opacity: 0.7;
+        cursor: not-allowed;
         transform: none;
       }
 
-      #status {
-        min-height: 1.2rem;
-        font-size: 0.95rem;
-        color: var(--accent-dark);
+      .loader {
+        display: none;
+        gap: 4px;
       }
 
-      @media (max-width: 600px) {
-        .shell {
-          padding: 1.3rem;
+      .loader span {
+        width: 6px;
+        height: 6px;
+        background-color: #fff;
+        border-radius: 50%;
+        animation: pulse 1.4s infinite ease-in-out both;
+      }
+
+      .loader span:nth-child(1) {
+        animation-delay: -0.32s;
+      }
+
+      .loader span:nth-child(2) {
+        animation-delay: -0.16s;
+      }
+
+      @keyframes pulse {
+        0%,
+        80%,
+        100% {
+          transform: scale(0);
+        }
+        40% {
+          transform: scale(1);
+        }
+      }
+
+      #status {
+        margin-top: 16px;
+        font-size: 14px;
+        min-height: 20px;
+        font-weight: 500;
+        transition: opacity 0.3s;
+      }
+
+      .status-success {
+        color: var(--ruh-success);
+      }
+
+      .status-error {
+        color: var(--ruh-error);
+      }
+
+      .status-warning {
+        color: var(--ruh-text-light);
+      }
+
+      @media (max-width: 520px) {
+        .signup-modal {
+          padding: 24px;
           border-radius: 16px;
         }
       }
     </style>
   </head>
   <body>
-    <main class="shell">
-      <h1>Get the weekly AI brief</h1>
-      <p>
-        Short, opinionated updates on AI agents, digital labor, enterprise wins, and funding.
-      </p>
+    <div class="signup-modal">
+      <h2>Get Work Done.</h2>
+      <p>Sign up to see how AI employees are changing operations - all day, every day.</p>
+
       <form id="subscribe-form" novalidate>
-        <div>
-          <label for="email">Work email</label>
+        <div class="input-wrapper">
+          <label for="email" class="sr-only">Email address</label>
           <input
+            type="email"
             id="email"
             name="email"
-            type="email"
             autocomplete="email"
+            placeholder="sarah@yourcompany.com"
             required
-            placeholder="you@company.com"
           />
         </div>
 
         <div class="honeypot" aria-hidden="true">
           <label for="company">Company</label>
-          <input id="company" name="company" type="text" tabindex="-1" />
+          <input
+            type="text"
+            id="company"
+            name="company"
+            tabindex="-1"
+            autocomplete="off"
+          />
         </div>
 
-        <button id="submit" type="submit">Subscribe</button>
-        <p id="status" role="status" aria-live="polite"></p>
+        <button type="submit" id="submit">
+          <span class="btn-text" id="btn-text">Subscribe Now</span>
+          <span class="loader" id="btn-loader" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </span>
+        </button>
       </form>
-    </main>
+
+      <div id="status" role="status" aria-live="polite" aria-atomic="true"></div>
+    </div>
 
     <script>
-      const form = document.getElementById("subscribe-form");
-      const emailInput = document.getElementById("email");
-      const companyInput = document.getElementById("company");
-      const statusEl = document.getElementById("status");
-      const submitButton = document.getElementById("submit");
+      document.addEventListener("DOMContentLoaded", () => {
+        const form = document.getElementById("subscribe-form");
+        const emailInput = document.getElementById("email");
+        const companyInput = document.getElementById("company");
+        const submitBtn = document.getElementById("submit");
+        const statusDiv = document.getElementById("status");
+        const btnText = document.getElementById("btn-text");
+        const btnLoader = document.getElementById("btn-loader");
 
-      function setStatus(message) {
-        statusEl.textContent = message;
-      }
-
-      form.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const email = emailInput.value.trim();
-        const company = companyInput.value.trim();
-
-        if (!email) {
-          setStatus("Enter an email address.");
-          return;
+        function setStatus(message, type) {
+          statusDiv.textContent = message;
+          statusDiv.className = "";
+          if (type) {
+            statusDiv.classList.add(`status-${type}`);
+          }
         }
 
-        submitButton.disabled = true;
-        setStatus("Subscribing...");
-
-        try {
-          const response = await fetch("/api/subscribe", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, company }),
-          });
-
-          const payload = await response.json().catch(() => ({}));
-
-          if (!response.ok) {
-            setStatus(payload.error || "Subscription failed. Please try again.");
+        function setLoading(isLoading) {
+          submitBtn.disabled = isLoading;
+          emailInput.disabled = isLoading;
+          if (isLoading) {
+            btnText.style.display = "none";
+            btnLoader.style.display = "flex";
+            setStatus("", "");
             return;
           }
-
-          if (payload.duplicate) {
-            setStatus("You are already subscribed.");
-            return;
-          }
-
-          setStatus("Subscribed. Check your inbox for future issues.");
-          form.reset();
-        } catch (_error) {
-          setStatus("Network issue. Please try again in a moment.");
-        } finally {
-          submitButton.disabled = false;
+          btnText.style.display = "block";
+          btnLoader.style.display = "none";
         }
+
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+
+          const email = emailInput.value.trim();
+          const company = companyInput.value;
+
+          setLoading(true);
+
+          try {
+            const response = await fetch("/api/subscribe", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ email, company }),
+            });
+
+            const status = response.status;
+            let data = {};
+
+            try {
+              data = await response.json();
+            } catch (_err) {
+              data = {};
+            }
+
+            if (status === 200) {
+              if (data.duplicate) {
+                setStatus("You are already subscribed. Welcome back!", "warning");
+                return;
+              }
+              setStatus("Success! You are now subscribed.", "success");
+              emailInput.value = "";
+              return;
+            }
+
+            if (status === 400) {
+              if (data.error === "invalid_email") {
+                setStatus("Please enter a valid email address.", "error");
+                return;
+              }
+              setStatus("Invalid submission data.", "error");
+              return;
+            }
+
+            if (status === 403) {
+              setStatus("This signup form is not available from this domain.", "error");
+              return;
+            }
+
+            if (status === 429) {
+              setStatus("Too many requests. Please try again later.", "error");
+              return;
+            }
+
+            if (status === 500 || status === 502) {
+              setStatus("Server error. Please try again later.", "error");
+              return;
+            }
+
+            setStatus("An unexpected error occurred.", "error");
+          } catch (_error) {
+            setStatus("Network error. Please check your connection.", "error");
+          } finally {
+            setLoading(false);
+          }
+        });
       });
     </script>
   </body>

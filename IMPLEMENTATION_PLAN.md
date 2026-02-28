@@ -454,7 +454,7 @@ Plan sync: Includes redraft cap/reset flow, render validation ledger gate, and b
   - Owner: Codex (2026-02-27)
   - Depends on: `IMP-001`
   - Done when: page submits email to API with user-friendly states
-  - Completion note: Implemented standalone responsive signup UI with client-side status states and API submission wiring.
+  - Completion note: Implemented and refreshed standalone responsive signup UI with modal-style presentation, loading/error/success states, API submission wiring, accessibility status semantics, and backend-compatible field IDs/payload contract.
 
 - [x] `IMP-091` Build `signup/api/subscribe.py` with validation
   - Owner: Codex (2026-02-27)
@@ -625,3 +625,4 @@ Plan sync: Includes redraft cap/reset flow, render validation ledger gate, and b
 - 2026-02-27: Completed composition/render tasks `IMP-050` to `IMP-055a` including schema repair loops, dead-letter fallback, deterministic HTML rendering, and Slack preview overflow handling (`50` tests passing).
 - 2026-02-28: Completed interaction/runtime/safety/signup/testing tasks `IMP-060` to `IMP-109a` with orchestrator + scheduler integrations and expanded test suite (`87` tests passing).
 - 2026-02-28: Completed deployment/observability tasks `IMP-110` and `IMP-112`; documented remaining external blockers for `IMP-110a`, `IMP-111`, `IMP-113`, `IMP-114`, and `IMP-115`.
+- 2026-02-28: Refreshed `IMP-090` signup page visual/UI behavior while preserving `/api/subscribe` contract and re-validated project checks (`91` tests passing).
