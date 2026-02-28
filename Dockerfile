@@ -14,8 +14,6 @@ COPY . .
 
 RUN mkdir -p /app/data && chown -R app:app /app
 
-VOLUME ["/app/data"]
-
 USER app
 
 CMD ["python", "bot.py"]
