@@ -79,7 +79,8 @@ class NewsletterWriter:
             "plan": newsletter_plan,
         }
 
-        prompt = self._build_prompt(input_payload)
+        initial_prompt = self._build_prompt(input_payload)
+        prompt = initial_prompt
         attempts = self._config.max_external_retries
         last_error = "unknown"
         last_output: str | None = None
@@ -100,7 +101,7 @@ class NewsletterWriter:
             except ContentValidationError as exc:
                 last_error = str(exc)
                 prompt = self._build_repair_prompt(
-                    original_prompt=prompt,
+                    original_prompt=initial_prompt,
                     invalid_output=result.content,
                     error_message=last_error,
                 )
@@ -131,7 +132,7 @@ class NewsletterWriter:
             "current_draft": current_draft,
             "feedback": feedback_text,
         }
-        prompt = (
+        initial_prompt = (
             "You are revising an existing newsletter JSON payload.\n"
             "Apply only the requested feedback while preserving unchanged sections.\n"
             "Preserve the voice target and safety rules below while revising.\n\n"
@@ -140,6 +141,7 @@ class NewsletterWriter:
             f"{NEWSLETTER_JSON_SCHEMA_SNIPPET}\n"
             f"INPUT:\n{json.dumps(input_payload, indent=2, sort_keys=True)}"
         )
+        prompt = initial_prompt
         attempts = self._config.max_external_retries
         last_error = "unknown"
         last_output: str | None = None
@@ -159,7 +161,7 @@ class NewsletterWriter:
             except ContentValidationError as exc:
                 last_error = str(exc)
                 prompt = self._build_repair_prompt(
-                    original_prompt=prompt,
+                    original_prompt=initial_prompt,
                     invalid_output=result.content,
                     error_message=last_error,
                 )
