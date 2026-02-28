@@ -74,7 +74,7 @@ class ResendSender:
             payload["reply_to"] = [reply_to]
 
         def _operation() -> Any:
-            return self._client.broadcasts.create(payload)
+            return self._client.Broadcasts.create(payload)
 
         response = self._resilience.execute(_operation)
         response_id = _extract_id(response)
@@ -93,7 +93,7 @@ class ResendSender:
             }
 
         def _operation() -> Any:
-            return self._client.broadcasts.send(broadcast_id)
+            return self._client.Broadcasts.send(broadcast_id)
 
         response = self._resilience.execute(_operation)
         return _to_dict(response)
@@ -106,15 +106,15 @@ class ResendSender:
                 "status": "dry_run",
             }
 
-        broadcasts = getattr(self._client, "broadcasts", None)
-        if broadcasts is None or not hasattr(broadcasts, "get"):
+        broadcasts_cls = getattr(self._client, "Broadcasts", None)
+        if broadcasts_cls is None or not hasattr(broadcasts_cls, "get"):
             return {
                 "id": broadcast_id,
                 "status": "unknown",
             }
 
         def _operation() -> Any:
-            return broadcasts.get(broadcast_id)
+            return broadcasts_cls.get(broadcast_id)
 
         response = self._resilience.execute(_operation)
         return _to_dict(response)

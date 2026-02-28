@@ -20,7 +20,7 @@ class _FakeBroadcasts:
 
 class _FakeResendClient:
     def __init__(self) -> None:
-        self.broadcasts = _FakeBroadcasts()
+        self.Broadcasts = _FakeBroadcasts()
 
 
 def test_sender_dry_run_never_calls_send(app_config: Any) -> None:
