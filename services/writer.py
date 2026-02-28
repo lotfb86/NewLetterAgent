@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from config import AppConfig
@@ -10,6 +11,8 @@ from services.composition import CompositionFailure, save_composition_dead_lette
 from services.llm import OpenRouterClient
 from services.schemas import NEWSLETTER_SCHEMA
 from services.validator import ContentValidationError, extract_json_payload, validate_json_payload
+
+logger = logging.getLogger(__name__)
 
 WRITER_SYSTEM_PROMPT = (
     "You are the newsletter writer for The Ruh Digest, "
@@ -85,14 +88,21 @@ class NewsletterWriter:
         last_error = "unknown"
         last_output: str | None = None
 
-        for _attempt in range(1, attempts + 1):
+        for attempt_num in range(1, attempts + 1):
             result = self._llm_client.ask_claude(
                 system_prompt=WRITER_SYSTEM_PROMPT,
                 user_prompt=prompt,
                 temperature=0.2,
-                max_tokens=4096,
+                max_tokens=16384,
             )
             last_output = result.content
+            logger.info(
+                "Writer attempt %d/%d: model returned %d chars (first 200: %r)",
+                attempt_num,
+                attempts,
+                len(result.content),
+                result.content[:200],
+            )
 
             try:
                 payload = extract_json_payload(result.content)
@@ -100,6 +110,12 @@ class NewsletterWriter:
                 return payload
             except ContentValidationError as exc:
                 last_error = str(exc)
+                logger.warning(
+                    "Writer attempt %d/%d failed: %s",
+                    attempt_num,
+                    attempts,
+                    last_error,
+                )
                 prompt = self._build_repair_prompt(
                     original_prompt=initial_prompt,
                     invalid_output=result.content,
@@ -139,27 +155,42 @@ class NewsletterWriter:
             f"{VOICE_STYLE_GUIDE}\n"
             "Return valid JSON only and keep all required schema fields.\n"
             f"{NEWSLETTER_JSON_SCHEMA_SNIPPET}\n"
-            f"INPUT:\n{json.dumps(input_payload, indent=2, sort_keys=True)}"
+            f"INPUT:\n{json.dumps(input_payload, indent=2, sort_keys=True)}\n\n"
+            "IMPORTANT: Respond ONLY with the JSON object. "
+            "Do not include any explanation, commentary, or markdown formatting. "
+            "Start your response with { and end with }."
         )
         prompt = initial_prompt
         attempts = self._config.max_external_retries
         last_error = "unknown"
         last_output: str | None = None
 
-        for _attempt in range(1, attempts + 1):
+        for attempt_num in range(1, attempts + 1):
             result = self._llm_client.ask_claude(
                 system_prompt=WRITER_SYSTEM_PROMPT,
                 user_prompt=prompt,
                 temperature=0.2,
-                max_tokens=4096,
+                max_tokens=16384,
             )
             last_output = result.content
+            logger.info(
+                "Writer revision attempt %d/%d: model returned %d chars",
+                attempt_num,
+                attempts,
+                len(result.content),
+            )
             try:
                 payload = extract_json_payload(result.content)
                 validate_json_payload(payload, NEWSLETTER_SCHEMA)
                 return payload
             except ContentValidationError as exc:
                 last_error = str(exc)
+                logger.warning(
+                    "Writer revision attempt %d/%d failed: %s",
+                    attempt_num,
+                    attempts,
+                    last_error,
+                )
                 prompt = self._build_repair_prompt(
                     original_prompt=initial_prompt,
                     invalid_output=result.content,
@@ -192,7 +223,10 @@ class NewsletterWriter:
             "- Keep writing concise enough for a newsletter, but not sterile.\n\n"
             f"{VOICE_STYLE_GUIDE}\n"
             f"{NEWSLETTER_JSON_SCHEMA_SNIPPET}\n"
-            f"INPUT:\n{json.dumps(payload, indent=2, sort_keys=True)}"
+            f"INPUT:\n{json.dumps(payload, indent=2, sort_keys=True)}\n\n"
+            "IMPORTANT: Respond ONLY with the JSON object. "
+            "Do not include any explanation, commentary, or markdown formatting. "
+            "Start your response with { and end with }."
         )
 
     @staticmethod

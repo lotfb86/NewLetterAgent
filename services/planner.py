@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from config import AppConfig
@@ -11,6 +12,15 @@ from services.composition import CompositionFailure, save_composition_dead_lette
 from services.llm import OpenRouterClient
 from services.schemas import PLANNER_SCHEMA
 from services.validator import ContentValidationError, extract_json_payload, validate_json_payload
+
+logger = logging.getLogger(__name__)
+
+# Maximum number of stories to include in the planner prompt to avoid
+# bloated payloads that degrade model output quality.
+_MAX_PLANNER_STORIES = 12
+
+# Truncate individual story summaries beyond this length (characters).
+_MAX_SUMMARY_CHARS = 300
 
 PLANNER_SYSTEM_PROMPT = (
     "You are the newsletter planning assistant for The Ruh Digest, "
@@ -46,6 +56,20 @@ class NewsletterPlanner:
         industry_story_inputs: list[dict[str, str | int | None]],
     ) -> dict[str, Any]:
         """Generate and validate planner JSON with repair retries."""
+        # Cap story count to keep the prompt within reasonable bounds.
+        capped_stories = industry_story_inputs[:_MAX_PLANNER_STORIES]
+        # Truncate long summaries to prevent payload bloat.
+        trimmed_stories = [
+            {**story, "summary": _truncate(story.get("summary"), _MAX_SUMMARY_CHARS)}
+            for story in capped_stories
+        ]
+        if len(industry_story_inputs) > _MAX_PLANNER_STORIES:
+            logger.info(
+                "Capped planner stories from %d to %d",
+                len(industry_story_inputs),
+                _MAX_PLANNER_STORIES,
+            )
+
         input_payload: dict[str, Any] = {
             "team_updates": [
                 {
@@ -54,7 +78,7 @@ class NewsletterPlanner:
                 }
                 for item in team_updates
             ],
-            "industry_stories": industry_story_inputs,
+            "industry_stories": trimmed_stories,
         }
 
         initial_prompt = self._build_prompt(input_payload)
@@ -63,20 +87,33 @@ class NewsletterPlanner:
         last_error = "unknown"
         last_output: str | None = None
 
-        for _attempt in range(1, attempts + 1):
+        for attempt_num in range(1, attempts + 1):
             result = self._llm_client.ask_claude(
                 system_prompt=PLANNER_SYSTEM_PROMPT,
                 user_prompt=prompt,
                 temperature=0.1,
-                max_tokens=4096,
+                max_tokens=16384,
             )
             last_output = result.content
+            logger.info(
+                "Planner attempt %d/%d: model returned %d chars (first 200: %r)",
+                attempt_num,
+                attempts,
+                len(result.content),
+                result.content[:200],
+            )
             try:
                 payload = extract_json_payload(result.content)
                 validate_json_payload(payload, PLANNER_SCHEMA)
                 return payload
             except ContentValidationError as exc:
                 last_error = str(exc)
+                logger.warning(
+                    "Planner attempt %d/%d failed: %s",
+                    attempt_num,
+                    attempts,
+                    last_error,
+                )
                 prompt = self._build_repair_prompt(
                     original_prompt=initial_prompt,
                     invalid_output=result.content,
@@ -131,8 +168,12 @@ class NewsletterPlanner:
             "  },\n"
             '  "cta": {"text": "..."}\n'
             "}\n\n"
-            f"INPUT:\n{json.dumps(payload, indent=2, sort_keys=True)}"
+            f"INPUT:\n{json.dumps(payload, indent=2, sort_keys=True)}\n\n"
+            "IMPORTANT: Respond ONLY with the JSON object. "
+            "Do not include any explanation, commentary, or markdown formatting. "
+            "Start your response with { and end with }."
         )
+
 
     @staticmethod
     def _build_repair_prompt(
@@ -149,3 +190,10 @@ class NewsletterPlanner:
             "Invalid output:\n"
             f"{invalid_output}"
         )
+
+
+def _truncate(value: str | int | None, max_chars: int) -> str | int | None:
+    """Truncate a string value to *max_chars*, appending '…' when clipped."""
+    if not isinstance(value, str) or len(value) <= max_chars:
+        return value
+    return value[:max_chars].rsplit(" ", 1)[0] + "…"

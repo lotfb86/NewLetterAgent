@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -10,6 +11,8 @@ from openai import OpenAI
 
 from config import AppConfig
 from services.resilience import ResiliencePolicy
+
+logger = logging.getLogger(__name__)
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_CLAUDE_MODEL = "anthropic/claude-sonnet-4.6"
@@ -68,7 +71,14 @@ class OpenRouterClient:
             )
 
         response = self._resilience.execute(_operation)
-        return _normalize_response(model=model, response=response)
+        result = _normalize_response(model=model, response=response)
+        if not result.content:
+            logger.warning(
+                "LLM returned empty content for model=%s (raw keys: %s)",
+                model,
+                list(result.raw_response.keys()) if result.raw_response else "none",
+            )
+        return result
 
     def ask_claude(
         self,
