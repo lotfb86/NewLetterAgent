@@ -35,11 +35,12 @@ class ResendContactsClient:
 
     def __init__(self, api_key: str) -> None:
         resend_module = importlib.import_module("resend")
-        client_cls = resend_module.Resend
-        self._client = client_cls(api_key=api_key)
+        # Resend SDK v2.x uses module-level api_key + module-level resources
+        resend_module.api_key = api_key
+        self._resend = resend_module
 
     def create_contact(self, *, email: str, audience_id: str) -> dict[str, Any]:
-        response = self._client.contacts.create(
+        response = self._resend.contacts.create(
             {
                 "email": email,
                 "audience_id": audience_id,

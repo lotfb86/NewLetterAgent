@@ -1,0 +1,9 @@
+{
+  "rootDirectory": "signup",
+  "buildCommand": null,
+  "outputDirectory": null,
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/subscribe", "destination": "/api/subscribe" }
+  ]
+}
