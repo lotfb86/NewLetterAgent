@@ -132,14 +132,29 @@ class ResiliencePolicy:
             raise
         except RetryError as exc:  # pragma: no cover
             self.breaker.record_failure()
+            root = _root_cause(exc)
             raise ExternalServiceError(
-                f"{self.name} failed after {self.max_attempts} attempts"
+                f"{self.name} failed after {self.max_attempts} attempts: {root}"
             ) from exc
         except Exception as exc:
             self.breaker.record_failure()
             raise ExternalServiceError(
-                f"{self.name} failed after {self.max_attempts} attempts"
+                f"{self.name} failed after {self.max_attempts} attempts: {exc}"
             ) from exc
 
         self.breaker.record_success()
         return result
+
+
+def _root_cause(exc: BaseException) -> str:
+    """Walk the exception chain to find the root cause message."""
+    current: BaseException | None = exc
+    last_msg = str(exc)
+    while current is not None:
+        msg = str(current).strip()
+        if msg:
+            last_msg = msg
+        current = current.__cause__ or current.__context__
+        if current is exc:
+            break
+    return last_msg
