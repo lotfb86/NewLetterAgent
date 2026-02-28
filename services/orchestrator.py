@@ -374,6 +374,7 @@ class NewsletterOrchestrator:
                     from_email=self._config.newsletter_from_email,
                     subject=str(payload.get("subject_line") or "This Week in AI"),
                     html=draft.draft_html,
+                    reply_to=self._config.newsletter_reply_to_email,
                 )
                 run = self._run_state.transition_run(
                     run_id,

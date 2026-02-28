@@ -164,6 +164,7 @@ def _build_config(tmp_path: Path, *, enable_dry_run: bool = True) -> AppConfig:
         resend_api_key="re",
         resend_audience_id="aud",
         newsletter_from_email="newsletter@example.com",
+        newsletter_reply_to_email=None,
         timezone="America/Chicago",
         research_day="thu",
         research_hour=9,

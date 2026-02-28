@@ -20,6 +20,7 @@ def app_config(tmp_path: Path) -> AppConfig:
         resend_api_key="re_test",
         resend_audience_id="aud_test",
         newsletter_from_email="newsletter@example.com",
+        newsletter_reply_to_email=None,
         timezone="America/Chicago",
         research_day="thu",
         research_hour=9,

@@ -43,6 +43,7 @@ def _build_dispatcher(tmp_path: Path) -> MessageDispatcher:
         resend_api_key="re",
         resend_audience_id="aud",
         newsletter_from_email="newsletter@example.com",
+        newsletter_reply_to_email=None,
         timezone="America/Chicago",
         research_day="thu",
         research_hour=9,

@@ -50,6 +50,7 @@ class ResendSender:
         from_email: str,
         subject: str,
         html: str,
+        reply_to: str | None = None,
     ) -> BroadcastResult:
         """Create a broadcast in Resend or return a simulated dry-run payload."""
         if self._dry_run:
@@ -63,12 +64,14 @@ class ResendSender:
                 },
             )
 
-        payload = {
+        payload: dict[str, Any] = {
             "audience_id": audience_id,
             "from": from_email,
             "subject": subject,
             "html": html,
         }
+        if reply_to:
+            payload["reply_to"] = [reply_to]
 
         def _operation() -> Any:
             return self._client.broadcasts.create(payload)

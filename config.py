@@ -27,6 +27,7 @@ class AppConfig:
     resend_api_key: str
     resend_audience_id: str
     newsletter_from_email: str
+    newsletter_reply_to_email: str | None
     timezone: str
     research_day: str
     research_hour: int
@@ -159,6 +160,7 @@ def get_config(load_dotenv_file: bool = True) -> AppConfig:
         resend_api_key=_get_required_env("RESEND_API_KEY"),
         resend_audience_id=_get_required_env("RESEND_AUDIENCE_ID"),
         newsletter_from_email=_get_required_env("NEWSLETTER_FROM_EMAIL"),
+        newsletter_reply_to_email=os.environ.get("NEWSLETTER_REPLY_TO_EMAIL") or None,
         timezone=_get_required_env("TIMEZONE"),
         research_day=research_day,
         research_hour=research_hour,
