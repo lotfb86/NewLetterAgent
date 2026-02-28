@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from services.context_state import ConversationState
 from services.llm import OpenRouterClient
+
+# Slack integrations may append inline attribution (e.g. "*Sent using* <@BOT>")
+_ATTRIBUTION_RE = re.compile(r"\s*\*Sent\s+using\*.*$", re.IGNORECASE | re.DOTALL)
 
 VALIDATOR_PROMPT = (
     "You are a newsletter editor. Evaluate this team update for clarity. "
@@ -53,7 +57,9 @@ class TeamUpdateHandler:
 
     def handle_thread_reply(self, *, thread_ts: str, text: str) -> TeamUpdateOutcome:
         """Handle clarification replies or late-update include replies."""
-        if thread_ts in self._late_update_roots and text.strip().lower() == "include":
+        # Strip Slack app attribution before matching command keywords.
+        normalized = _ATTRIBUTION_RE.sub("", text).strip().lower()
+        if thread_ts in self._late_update_roots and normalized == "include":
             self._late_update_roots.remove(thread_ts)
             return TeamUpdateOutcome(status="include_late_update", include_requested=True)
 
