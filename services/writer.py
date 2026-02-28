@@ -48,6 +48,7 @@ class NewsletterWriter:
                 system_prompt=WRITER_SYSTEM_PROMPT,
                 user_prompt=prompt,
                 temperature=0.2,
+                max_tokens=4096,
             )
             last_output = result.content
 
@@ -104,6 +105,7 @@ class NewsletterWriter:
                 system_prompt=WRITER_SYSTEM_PROMPT,
                 user_prompt=prompt,
                 temperature=0.2,
+                max_tokens=4096,
             )
             last_output = result.content
             try:
@@ -141,7 +143,23 @@ class NewsletterWriter:
             "- Keep tone professional, concise, and authoritative.\n"
             "- Ensure all source URLs are absolute https links.\n"
             "- CTA should include text and a valid https URL.\n"
-            "Return JSON matching schema exactly.\n\n"
+            "Return a JSON object with this exact structure (no extra keys):\n"
+            "{\n"
+            '  "newsletter_name": "This Week in AI",\n'
+            '  "issue_date": "2026-02-28",\n'
+            '  "subject_line": "...",\n'
+            '  "preheader": "...",\n'
+            '  "intro": "...",\n'
+            '  "team_updates": [{"title": "...", "summary": "..."}],\n'
+            '  "industry_stories": [{\n'
+            '    "headline": "...", "hook": "...",\n'
+            '    "why_it_matters": "...",\n'
+            '    "source_url": "https://...", "source_name": "...",\n'
+            '    "published_at": "2026-02-28",\n'
+            '    "confidence": "high|medium|low"\n'
+            "  }],\n"
+            '  "cta": {"text": "...", "url": "https://..."}\n'
+            "}\n\n"
             f"INPUT:\n{json.dumps(payload, indent=2, sort_keys=True)}"
         )
 

@@ -53,6 +53,7 @@ class NewsletterPlanner:
                 system_prompt=PLANNER_SYSTEM_PROMPT,
                 user_prompt=prompt,
                 temperature=0.1,
+                max_tokens=4096,
             )
             last_output = result.content
             try:
@@ -91,7 +92,25 @@ class NewsletterPlanner:
             "- Only include stories in the current issue window unless "
             "explicitly marked unavoidable.\n"
             "- Include confidence for each industry item.\n"
-            "Return JSON matching the required schema.\n\n"
+            "Return a JSON object with this exact structure (no extra keys):\n"
+            "{\n"
+            '  "team_section": {\n'
+            '    "include": true,\n'
+            '    "items": [{"title": "...", "summary": "..."}]\n'
+            "  },\n"
+            '  "industry_section": {\n'
+            '    "items": [{\n'
+            '      "headline": "...",\n'
+            '      "hook": "...",\n'
+            '      "why_it_matters": "...",\n'
+            '      "source_url": "https://...",\n'
+            '      "source_name": "...",\n'
+            '      "published_at": "2026-02-28",\n'
+            '      "confidence": "high|medium|low"\n'
+            "    }]\n"
+            "  },\n"
+            '  "cta": {"text": "..."}\n'
+            "}\n\n"
             f"INPUT:\n{json.dumps(payload, indent=2, sort_keys=True)}"
         )
 
