@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment files
+.env
+
+# Runtime data
+data/run_state.db
+data/run_state.db.bak
+
+# Playwright CLI artifacts
+.playwright-cli/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
