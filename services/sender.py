@@ -39,10 +39,9 @@ class ResendSender:
     @staticmethod
     def _build_default_client(config: AppConfig) -> Any:
         resend_module = importlib.import_module("resend")
-        resend_client_cls = getattr(resend_module, "Resend", None)
-        if resend_client_cls is None:
-            raise RuntimeError("Resend SDK does not expose Resend client")
-        return resend_client_cls(api_key=config.resend_api_key)
+        # Resend SDK v2.x uses module-level api_key + module-level resources
+        resend_module.api_key = config.resend_api_key
+        return resend_module
 
     def create_broadcast(
         self,
