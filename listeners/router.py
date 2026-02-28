@@ -66,6 +66,8 @@ class MessageDispatcher:
         # Strip Slack app attribution and use first line for command matching
         first_line = text.split("\n", 1)[0].strip()
         command_text = _ATTRIBUTION_RE.sub("", first_line).strip()
+        # Also strip attribution from full text so stored updates are clean
+        clean_text = _ATTRIBUTION_RE.sub("", text).strip()
 
         if self._is_self_message(event, user_id):
             return RoutingOutcome(action="ignore", detail="self_message")
@@ -134,7 +136,7 @@ class MessageDispatcher:
         if thread_ts and self._update_handler.is_late_update_thread(thread_ts):
             late_thread_outcome = self._update_handler.handle_thread_reply(
                 thread_ts=thread_ts,
-                text=text,
+                text=clean_text,
             )
             if late_thread_outcome.include_requested:
                 include_result = self._on_include_late_update(thread_ts)
@@ -152,7 +154,7 @@ class MessageDispatcher:
         if thread_ts and self._context_state.is_team_update_thread(thread_ts):
             clarification_outcome = self._update_handler.handle_thread_reply(
                 thread_ts=thread_ts,
-                text=text,
+                text=clean_text,
             )
             return RoutingOutcome(
                 action="clarification_context",
@@ -164,7 +166,7 @@ class MessageDispatcher:
 
         update_outcome = self._update_handler.handle_top_level_update(
             message_ts=message_ts,
-            text=text,
+            text=clean_text,
             is_late_update=is_late,
         )
         if update_outcome.status == "late_update_prompt":

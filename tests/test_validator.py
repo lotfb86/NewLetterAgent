@@ -24,13 +24,13 @@ def test_extract_json_payload_direct_json() -> None:
 
 
 def test_extract_json_payload_from_code_fence() -> None:
-    text = "Here is the plan:\n```json\n{\"a\": 1, \"b\": 2}\n```\nDone."
+    text = 'Here is the plan:\n```json\n{"a": 1, "b": 2}\n```\nDone.'
     payload = extract_json_payload(text)
     assert payload == {"a": 1, "b": 2}
 
 
 def test_extract_json_payload_from_code_fence_no_newline() -> None:
-    text = "```json{\"a\": 1}```"
+    text = '```json{"a": 1}```'
     payload = extract_json_payload(text)
     assert payload == {"a": 1}
 
@@ -38,7 +38,7 @@ def test_extract_json_payload_from_code_fence_no_newline() -> None:
 def test_extract_json_payload_prose_with_braces_before_json() -> None:
     """Prose containing {curly} braces before real JSON shouldn't confuse parser."""
     text = (
-        'The plan: {hook here} for the industry.\n'
+        "The plan: {hook here} for the industry.\n"
         '{"team_section": {"include": true}, "cta": {"text": "hi"}}'
     )
     payload = extract_json_payload(text)

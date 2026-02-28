@@ -6,7 +6,7 @@ import json
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +71,28 @@ class RunStateStore:
                     acquired_at TEXT NOT NULL
                 )
                 """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS context_state (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    collection_cutoff_at TEXT,
+                    newsletter_sent INTEGER NOT NULL DEFAULT 0,
+                    pending_late_include_threads TEXT NOT NULL DEFAULT '[]',
+                    team_update_thread_roots TEXT NOT NULL DEFAULT '[]',
+                    team_update_bodies TEXT NOT NULL DEFAULT '{}',
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+        self.clear_stale_lock()
+
+    def clear_stale_lock(self, max_age_minutes: int = 30) -> None:
+        """Remove run lock if it's older than max_age_minutes (crash recovery)."""
+        with self._connect() as conn:
+            conn.execute(
+                "DELETE FROM run_lock WHERE lock_id = 1 AND acquired_at < ?",
+                ((datetime.now(UTC) - timedelta(minutes=max_age_minutes)).isoformat(),),
             )
 
     def create_run(
@@ -409,10 +431,62 @@ class RunStateStore:
             return None
         return str(row["run_id"])
 
+    def load_context_state(self) -> dict[str, Any]:
+        """Load persisted conversation state or return defaults."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM context_state WHERE id = 1"
+            ).fetchone()
+        if row is None:
+            return {
+                "collection_cutoff_at": None,
+                "newsletter_sent": False,
+                "pending_late_include_threads": [],
+                "team_update_thread_roots": [],
+                "team_update_bodies": {},
+            }
+        return {
+            "collection_cutoff_at": row["collection_cutoff_at"],
+            "newsletter_sent": bool(row["newsletter_sent"]),
+            "pending_late_include_threads": json.loads(row["pending_late_include_threads"]),
+            "team_update_thread_roots": json.loads(row["team_update_thread_roots"]),
+            "team_update_bodies": json.loads(row["team_update_bodies"]),
+        }
+
+    def save_context_state(self, state: dict[str, Any]) -> None:
+        """Persist conversation state to singleton row."""
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO context_state (
+                    id, collection_cutoff_at, newsletter_sent,
+                    pending_late_include_threads, team_update_thread_roots,
+                    team_update_bodies, updated_at
+                ) VALUES (1, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    collection_cutoff_at = excluded.collection_cutoff_at,
+                    newsletter_sent = excluded.newsletter_sent,
+                    pending_late_include_threads = excluded.pending_late_include_threads,
+                    team_update_thread_roots = excluded.team_update_thread_roots,
+                    team_update_bodies = excluded.team_update_bodies,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    state.get("collection_cutoff_at"),
+                    int(state.get("newsletter_sent", False)),
+                    json.dumps(sorted(state.get("pending_late_include_threads", []))),
+                    json.dumps(sorted(state.get("team_update_thread_roots", []))),
+                    json.dumps(state.get("team_update_bodies", {}), sort_keys=True),
+                    _now_iso(),
+                ),
+            )
+
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
         try:
             yield conn
             conn.commit()

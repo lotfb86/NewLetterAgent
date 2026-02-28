@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from services.context_state import ConversationState
 from services.llm import OpenRouterClient
@@ -33,7 +33,6 @@ class TeamUpdateHandler:
 
     llm_client: OpenRouterClient
     context_state: ConversationState
-    _late_update_roots: set[str] = field(default_factory=set)
 
     def handle_top_level_update(
         self,
@@ -47,7 +46,6 @@ class TeamUpdateHandler:
 
         if is_late_update:
             self.context_state.record_late_update(message_ts, text)
-            self._late_update_roots.add(message_ts)
             return TeamUpdateOutcome(status="late_update_prompt")
 
         result = self._validate_with_llm(text)
@@ -59,8 +57,8 @@ class TeamUpdateHandler:
         """Handle clarification replies or late-update include replies."""
         # Strip Slack app attribution before matching command keywords.
         normalized = _ATTRIBUTION_RE.sub("", text).strip().lower()
-        if thread_ts in self._late_update_roots and normalized == "include":
-            self._late_update_roots.remove(thread_ts)
+        if thread_ts in self.context_state.pending_late_include_threads and normalized == "include":
+            self.context_state.resolve_late_include(thread_ts)
             return TeamUpdateOutcome(status="include_late_update", include_requested=True)
 
         self.context_state.add_clarification_reply(thread_ts, text)
@@ -69,21 +67,27 @@ class TeamUpdateHandler:
 
     def is_late_update_thread(self, thread_ts: str) -> bool:
         """Return whether thread belongs to a late update awaiting include/skip decision."""
-        return thread_ts in self._late_update_roots
+        return thread_ts in self.context_state.pending_late_include_threads
 
     def _validate_with_llm(self, text: str) -> TeamUpdateOutcome:
-        response = self.llm_client.ask_claude(
-            system_prompt=VALIDATOR_PROMPT,
-            user_prompt=text,
-            temperature=0.0,
-            max_tokens=400,
-        )
+        try:
+            response = self.llm_client.ask_claude(
+                system_prompt=VALIDATOR_PROMPT,
+                user_prompt=text,
+                temperature=0.0,
+                max_tokens=400,
+            )
 
-        normalized = response.content.strip()
-        if normalized.upper() == "CLEAR":
-            return TeamUpdateOutcome(status="clear")
+            normalized = (response.content or "").strip()
+            if not normalized:
+                return TeamUpdateOutcome(status="validation_unavailable")
 
-        questions = tuple(
-            line.strip("- ").strip() for line in normalized.splitlines() if line.strip()
-        )
-        return TeamUpdateOutcome(status="needs_clarification", questions=questions)
+            if normalized.upper() == "CLEAR":
+                return TeamUpdateOutcome(status="clear")
+
+            questions = tuple(
+                line.strip("- ").strip() for line in normalized.splitlines() if line.strip()
+            )
+            return TeamUpdateOutcome(status="needs_clarification", questions=questions)
+        except Exception:  # noqa: BLE001
+            return TeamUpdateOutcome(status="validation_unavailable")

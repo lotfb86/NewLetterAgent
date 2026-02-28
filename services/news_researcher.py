@@ -44,14 +44,17 @@ class NewsResearcher:
         """Run configured queries and return normalized query-level results."""
         results: list[QueryResearchResult] = []
         for query in self._queries:
-            response = self._llm_client.ask_perplexity(user_prompt=query)
-            results.append(
-                QueryResearchResult(
-                    query=query,
-                    content=response.content,
-                    citations=response.citations,
+            try:
+                response = self._llm_client.ask_perplexity(user_prompt=query)
+                results.append(
+                    QueryResearchResult(
+                        query=query,
+                        content=response.content,
+                        citations=response.citations,
+                    )
                 )
-            )
+            except Exception:  # noqa: BLE001
+                continue
         return results
 
     def to_story_candidates(self, results: list[QueryResearchResult]) -> list[StoryCandidate]:

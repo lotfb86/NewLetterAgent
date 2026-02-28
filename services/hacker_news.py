@@ -52,7 +52,10 @@ class HackerNewsReader:
         with ThreadPoolExecutor(max_workers=10) as pool:
             future_map = {pool.submit(self._fetch_item, i): i for i in valid_ids}
             for future in as_completed(future_map):
-                story = future.result()
+                try:
+                    story = future.result()
+                except Exception:  # noqa: BLE001
+                    continue
                 if story is not None:
                     stories.append(story)
 

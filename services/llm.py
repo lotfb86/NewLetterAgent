@@ -14,6 +14,7 @@ from services.resilience import ResiliencePolicy
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_CLAUDE_MODEL = "anthropic/claude-sonnet-4.6"
 DEFAULT_PERPLEXITY_MODEL = "perplexity/sonar"
+DEFAULT_GROK_MODEL = "x-ai/grok-3"
 
 
 @dataclass(frozen=True)
@@ -97,6 +98,23 @@ class OpenRouterClient:
         """Convenience wrapper for Perplexity Sonar requests."""
         return self.chat(
             model=DEFAULT_PERPLEXITY_MODEL,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+    def ask_grok(
+        self,
+        *,
+        user_prompt: str,
+        system_prompt: str | None = None,
+        temperature: float = 0.2,
+        max_tokens: int = 1500,
+    ) -> LLMResult:
+        """Convenience wrapper for Grok (xAI) model requests."""
+        return self.chat(
+            model=DEFAULT_GROK_MODEL,
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             temperature=temperature,

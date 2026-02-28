@@ -176,6 +176,18 @@ def test_router_strips_slack_attribution(tmp_path: Path) -> None:
     assert replay.action == "replay"
 
 
+def test_router_strips_attribution_from_stored_update_text(tmp_path: Path) -> None:
+    dispatcher = _build_dispatcher(tmp_path)
+
+    raw_text = "We shipped v2 of the API *Sent using* <@U09J4E03THB>"
+    dispatcher.dispatch({"user": "U1", "text": raw_text, "ts": "7.0"})
+
+    bodies = dispatcher._context_state.team_update_bodies
+    assert "7.0" in bodies
+    assert "*Sent using*" not in bodies["7.0"]
+    assert bodies["7.0"] == "We shipped v2 of the API"
+
+
 def test_router_ignores_system_subtypes(tmp_path: Path) -> None:
     dispatcher = _build_dispatcher(tmp_path)
 

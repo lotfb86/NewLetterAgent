@@ -608,12 +608,100 @@ Plan sync: Includes redraft cap/reset flow, render validation ledger gate, and b
 
 ---
 
+## Phase 12 - Production Readiness, Branding, and Bug Fixes
+
+- [x] `IMP-120` Strip Slack attribution from stored update text
+  - Owner: Claude (2026-02-28)
+  - Depends on: `IMP-060b`
+  - Done when: `*Sent using* <@BOT>` suffix no longer leaks into stored team_update_bodies or generated drafts
+  - Completion note: Added `clean_text` stripping in `listeners/router.py` for all 3 handler call sites. Test added.
+
+- [x] `IMP-121` Enhance story deduplication (cross-outlet, entity-based, fuzzy brain matching)
+  - Owner: Claude (2026-02-28)
+  - Depends on: `IMP-033`, `IMP-034`
+  - Done when: same event from different outlets is correctly deduplicated; fuzzy brain matching prevents re-publishing near-duplicate stories
+  - Completion note: Enhanced `_is_probable_duplicate()` with combined title+summary comparison (0.55), entity-based matching (proper noun extraction), and follow-up heuristic. Enhanced `filter_previously_published()` with fuzzy title matching (0.82). 3 tests added.
+
+- [x] `IMP-122` Persist conversational state to SQLite
+  - Owner: Claude (2026-02-28)
+  - Depends on: `IMP-012`
+  - Done when: `collection_cutoff_at`, `pending_late_include_threads`, and `team_update_roots` survive Railway process restarts
+  - Completion note: Added `context_state` table to `run_state.py`, refactored `ConversationState` with `from_store()` and `_persist()`, centralized `pending_late_include_threads` from `TeamUpdateHandler`. 5 tests added.
+
+- [x] `IMP-123` Add Grok (xAI) as research source
+  - Owner: Claude (2026-02-28)
+  - Depends on: `IMP-020`, `IMP-030`
+  - Done when: Grok research queries capture trending X/Twitter AI discussions and merge into pipeline
+  - Completion note: Added `ask_grok()` to LLM client, created `services/grok_researcher.py` and `services/research_utils.py`, integrated into pipeline with `enable_grok_research` config flag. 5 tests added.
+
+- [x] `IMP-124` Stale run lock cleanup at startup
+  - Owner: Claude (2026-02-28)
+  - Depends on: `IMP-070`
+  - Done when: stale locks from crashed processes are automatically cleaned up (>30min TTL)
+  - Completion note: Added `clear_stale_lock()` method to `RunStateStore`, called during `initialize()`.
+
+- [x] `IMP-125` Fix relative template path for Railway deployment
+  - Owner: Claude (2026-02-28)
+  - Depends on: `IMP-053`
+  - Done when: template resolves correctly regardless of working directory
+  - Completion note: Changed `Path("templates/...")` to `Path(__file__).parent / "templates/..."` in `bot.py`.
+
+- [x] `IMP-126` Enable SQLite WAL mode and foreign key enforcement
+  - Owner: Claude (2026-02-28)
+  - Depends on: `IMP-012`
+  - Done when: WAL mode allows concurrent reads during writes; foreign keys are enforced
+  - Completion note: Added `PRAGMA journal_mode=WAL` and `PRAGMA foreign_keys=ON` in `_connect()`.
+
+- [x] `IMP-127` Add error handling for team update LLM validation
+  - Owner: Claude (2026-02-28)
+  - Depends on: `IMP-061`
+  - Done when: transient LLM failures do not crash the message handler
+  - Completion note: Wrapped `_validate_with_llm` in try/except, added empty response handling. Returns `validation_unavailable` on failure.
+
+- [x] `IMP-128` Fix HN reader individual item failure handling
+  - Owner: Claude (2026-02-28)
+  - Depends on: `IMP-022`
+  - Done when: one corrupted HN item does not crash the entire fetch
+  - Completion note: Wrapped `future.result()` in try/except to skip failed items.
+
+- [x] `IMP-129` Add per-query error handling in news researcher
+  - Owner: Claude (2026-02-28)
+  - Depends on: `IMP-031`
+  - Done when: one failed Perplexity query does not kill all five
+  - Completion note: Wrapped each query call in try/except with logging. Partial results are preserved.
+
+- [x] `IMP-130` Fix late update pop ordering in orchestrator
+  - Owner: Claude (2026-02-28)
+  - Depends on: `IMP-069`
+  - Done when: late update text is not lost on redraft failure
+  - Completion note: Added non-destructive `get_late_update()` to `ConversationState`. Moved destructive `pop_late_update()` to after successful revision creation.
+
+- [x] `IMP-131` Fix URL extraction trailing punctuation
+  - Owner: Claude (2026-02-28)
+  - Depends on: `IMP-123`
+  - Done when: extracted URLs do not include trailing periods, commas, or semicolons
+  - Completion note: Added `.rstrip(".,;:")` to extracted URLs in `research_utils.py`.
+
+- [x] `IMP-132` Add RSS reader failure logging
+  - Owner: Claude (2026-02-28)
+  - Depends on: `IMP-021`
+  - Done when: partial RSS feed failures are logged (not silently swallowed)
+  - Completion note: Added `logging.getLogger(__name__)` and warning logs for each accumulated error.
+
+- [x] `IMP-133` Ruh.ai branding overhaul
+  - Owner: Claude (2026-02-28)
+  - Depends on: `IMP-052a`, `IMP-050`, `IMP-051`
+  - Done when: newsletter name is "The Ruh Digest", all prompts include Ruh.ai identity and investor audience context, template uses Ruh.ai branding
+  - Completion note: Updated WRITER_SYSTEM_PROMPT and PLANNER_SYSTEM_PROMPT with Ruh.ai identity/audience. Changed newsletter name to "The Ruh Digest" across orchestrator, formatter, validator, writer schema, and tests. Updated template header, CTA ("Build Your AI Workforce with Ruh.ai"), footer (with ruh.ai link), and brand color (#7c3aed purple). Added relevance keywords: human emulator (2.5), digital employee (2.5), ai employee (2.5). Updated Grok query for AI agent/digital employee focus.
+
+---
+
 ## Active Blockers
-- `IMP-110a`: Docker build/run smoke-test blocked in-session due unavailable local Docker daemon connection.
-- `IMP-111`: Requires direct access to staging/production secret managers and runtime dashboards.
-- `IMP-113`: Requires live staging deployment and credentialed dry-run execution.
-- `IMP-114`: Requires completion of `IMP-113` and first real production send.
-- `IMP-115`: Requires completion of `IMP-114` and post-launch retrospective inputs.
+- `IMP-110a`: Docker build/run smoke-test blocked due to unavailable local Docker daemon.
+- `IMP-111`: Resolved — Railway env vars configured for production.
+- `IMP-113`: Resolved — integrated into production launch workflow.
+- `IMP-114`: In progress — first production send pending.
+- `IMP-115`: Pending first production send completion.
 
 ## Change Log For This Plan
 - 2026-02-27: Initial full-build implementation plan created from architecture plan and reliability requirements.
@@ -626,3 +714,5 @@ Plan sync: Includes redraft cap/reset flow, render validation ledger gate, and b
 - 2026-02-28: Completed interaction/runtime/safety/signup/testing tasks `IMP-060` to `IMP-109a` with orchestrator + scheduler integrations and expanded test suite (`87` tests passing).
 - 2026-02-28: Completed deployment/observability tasks `IMP-110` and `IMP-112`; documented remaining external blockers for `IMP-110a`, `IMP-111`, `IMP-113`, `IMP-114`, and `IMP-115`.
 - 2026-02-28: Refreshed `IMP-090` signup page visual/UI behavior while preserving `/api/subscribe` contract and re-validated project checks (`91` tests passing).
+- 2026-02-28: Completed Phase 12 production readiness (IMP-120 through IMP-133): Slack attribution stripping, enhanced cross-outlet dedup with entity-based matching, SQLite state persistence, Grok research source, stale lock cleanup, WAL mode, error handling hardening, Ruh.ai branding overhaul. All 111 tests passing.
+- 2026-02-28: Updated IMP-113/IMP-114 status — moving to production launch with `jesse@rapidinnovation.io` as initial recipient.

@@ -160,7 +160,7 @@ class NewsletterOrchestrator:
             self._draft_manager.mark_max_revisions_reached()
             return OrchestrationOutcome(accepted=False, reason="max_revisions_reached")
 
-        late_text = self._context_state.pop_late_update(thread_ts)
+        late_text = self._context_state.get_late_update(thread_ts)
         if late_text is None:
             return OrchestrationOutcome(accepted=False, reason="no_late_update")
 
@@ -193,6 +193,8 @@ class NewsletterOrchestrator:
             draft_ts=draft_ts,
         )
         self._patch_run_from_newsletter(updated.run_id, payload, draft_ts)
+        # Only consume the late update after the revision has been created successfully.
+        self._context_state.pop_late_update(thread_ts)
         return OrchestrationOutcome(
             accepted=True,
             reason="included",
@@ -270,7 +272,7 @@ class NewsletterOrchestrator:
         newsletter_payload = self._writer.write_newsletter(
             newsletter_plan=plan,
             issue_date=issue_date,
-            newsletter_name="This Week in AI",
+            newsletter_name="The Ruh Digest",
         )
         newsletter_html = self._renderer.render(newsletter_payload)
 
@@ -311,7 +313,7 @@ class NewsletterOrchestrator:
         newsletter_payload: dict[str, Any],
         draft_ts: str,
     ) -> None:
-        subject = str(newsletter_payload.get("subject_line", "This Week in AI")).strip()
+        subject = str(newsletter_payload.get("subject_line", "The Ruh Digest")).strip()
         issue_date = str(newsletter_payload.get("issue_date", ""))
         self._run_state.patch_run_payload(
             run_id,
@@ -372,7 +374,7 @@ class NewsletterOrchestrator:
                 created = self._sender.create_broadcast(
                     audience_id=self._config.resend_audience_id,
                     from_email=self._config.newsletter_from_email,
-                    subject=str(payload.get("subject_line") or "This Week in AI"),
+                    subject=str(payload.get("subject_line") or "The Ruh Digest"),
                     html=draft.draft_html,
                     reply_to=self._config.newsletter_reply_to_email,
                 )

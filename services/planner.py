@@ -13,7 +13,11 @@ from services.schemas import PLANNER_SCHEMA
 from services.validator import ContentValidationError, extract_json_payload, validate_json_payload
 
 PLANNER_SYSTEM_PROMPT = (
-    "You are a newsletter planning assistant. "
+    "You are the newsletter planning assistant for The Ruh Digest, "
+    "the weekly AI industry newsletter published by Ruh.ai. "
+    "Ruh.ai builds human emulators and AI digital employees for enterprise clients. "
+    "Your audience includes enterprise decision-makers and investors interested in "
+    "AI agents, digital labor, and enterprise automation. "
     "Output ONLY a single JSON object. "
     "Do NOT include markdown code fences, commentary, or any text "
     "before or after the JSON object."
@@ -102,7 +106,10 @@ class NewsletterPlanner:
             "- Only include stories in the current issue window unless "
             "explicitly marked unavoidable.\n"
             "- Include confidence for each industry item.\n"
-            "- Make planned hooks and summaries support a very human, witty tone.\n\n"
+            "- Make planned hooks and summaries support a very human, witty tone.\n"
+            "- Prioritize stories most relevant to our audience: AI agents, digital labor, "
+            "enterprise automation, human emulation, and AI employee developments.\n"
+            "- Frame stories through the lens of business impact and investment opportunity.\n\n"
             f"{PLANNER_STYLE_GUIDANCE}\n"
             "Return a JSON object with this exact structure (no extra keys):\n"
             "{\n"

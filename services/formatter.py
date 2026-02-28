@@ -70,7 +70,7 @@ def _build_markdown_sections(payload: dict[str, Any]) -> list[str]:
 
     industry_stories = payload.get("industry_stories", [])
     if isinstance(industry_stories, list):
-        story_lines = ["*This Week in AI*"]
+        story_lines = ["*The Ruh Digest*"]
         for story in industry_stories:
             headline = str(story.get("headline", "")).strip()
             hook = str(story.get("hook", "")).strip()

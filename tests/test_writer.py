@@ -30,7 +30,7 @@ def test_writer_validates_and_repairs(app_config: Any) -> None:
     {
       "newsletter_name": "AI Weekly",
       "issue_date": "2026-02-27",
-      "subject_line": "This Week in AI",
+      "subject_line": "The Ruh Digest",
       "preheader": "Top AI stories",
       "intro": "Intro text",
       "team_updates": [{"title": "Update", "summary": "Summary"}],
@@ -81,7 +81,7 @@ def test_writer_revise_newsletter_returns_valid_json(app_config: Any) -> None:
     {
       "newsletter_name": "AI Weekly",
       "issue_date": "2026-02-27",
-      "subject_line": "This Week in AI",
+      "subject_line": "The Ruh Digest",
       "preheader": "Top AI stories",
       "intro": "Updated intro",
       "team_updates": [{"title": "Update", "summary": "Summary"}],
@@ -121,7 +121,7 @@ def test_writer_prompt_includes_new_voice_contract(app_config: Any) -> None:
     {
       "newsletter_name": "AI Weekly",
       "issue_date": "2026-02-27",
-      "subject_line": "This Week in AI",
+      "subject_line": "The Ruh Digest",
       "preheader": "Top AI stories",
       "intro": "Intro text",
       "team_updates": [{"title": "Update", "summary": "Summary"}],

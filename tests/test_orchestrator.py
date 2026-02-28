@@ -106,7 +106,7 @@ class _FakeRenderer:
         return (
             "<html><body>"
             "What We've Been Up To"
-            "This Week in AI"
+            "The Ruh Digest"
             f"<a href='{first_story['source_url']}'>story</a>"
             f"<a href='{newsletter_payload['cta']['url']}'>cta</a>"
             "<a href='{{{RESEND_UNSUBSCRIBE_URL}}}'>unsubscribe</a>"
@@ -231,7 +231,7 @@ def _sample_newsletter_payload(*, issue_date: str) -> dict[str, Any]:
     return {
         "newsletter_name": "AI Weekly",
         "issue_date": issue_date,
-        "subject_line": "This Week in AI",
+        "subject_line": "The Ruh Digest",
         "preheader": "Top AI stories",
         "intro": "Hello team",
         "team_updates": [{"title": "Launch", "summary": "Shipped a new workflow"}],

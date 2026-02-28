@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from difflib import SequenceMatcher
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from config import AppConfig
@@ -20,6 +22,9 @@ from services.quality import (
 )
 from services.rss_reader import RSSReader
 from services.slack_reader import SlackReader
+
+if TYPE_CHECKING:
+    from services.grok_researcher import GrokResearcher
 
 
 @dataclass(frozen=True)
@@ -56,12 +61,14 @@ class ResearchPipeline:
         rss_reader: RSSReader,
         hacker_news_reader: HackerNewsReader,
         news_researcher: NewsResearcher,
+        grok_researcher: GrokResearcher | None = None,
     ) -> None:
         self._config = config
         self._slack_reader = slack_reader
         self._rss_reader = rss_reader
         self._hacker_news_reader = hacker_news_reader
         self._news_researcher = news_researcher
+        self._grok_researcher = grok_researcher
 
     def collect_sources(
         self, *, start_at: datetime, end_at: datetime
@@ -96,7 +103,12 @@ class ResearchPipeline:
         perplexity_results = self._news_researcher.run_weekly_research()
         perplexity_stories = self._news_researcher.to_story_candidates(perplexity_results)
 
-        merged = merge_primary_dedupe([*source_stories, *perplexity_stories])
+        grok_stories: list[StoryCandidate] = []
+        if self._grok_researcher is not None and self._grok_researcher.enabled:
+            grok_results = self._grok_researcher.run_research()
+            grok_stories = self._grok_researcher.to_story_candidates(grok_results)
+
+        merged = merge_primary_dedupe([*source_stories, *perplexity_stories, *grok_stories])
         canonicalized = apply_canonicalization_and_tiering(merged)
         secondary = secondary_dedupe(canonicalized)
         verified = enforce_numeric_claim_verification(secondary)
@@ -184,6 +196,17 @@ def filter_previously_published(
             continue
         if normalized_title in published_titles:
             continue
+
+        # Fuzzy title match against published history for cross-outlet dedup.
+        is_fuzzy_dup = False
+        for pub in relevant_published:
+            pub_title = _normalize_title(pub.title)
+            if SequenceMatcher(None, normalized_title, pub_title).ratio() >= 0.82:
+                is_fuzzy_dup = True
+                break
+        if is_fuzzy_dup:
+            continue
+
         filtered.append(candidate)
 
     return filtered
@@ -206,6 +229,9 @@ def _compute_relevance(story: StoryCandidate) -> tuple[float, list[str]]:
     reasons: list[str] = []
 
     keyword_weights: tuple[tuple[str, float, str], ...] = (
+        ("human emulator", 2.5, "human_emulators"),
+        ("digital employee", 2.5, "digital_employees"),
+        ("ai employee", 2.5, "ai_employees"),
         ("agent", 2.0, "ai_agents"),
         ("digital labor", 2.0, "digital_labor"),
         ("funding", 1.8, "funding"),
@@ -256,24 +282,58 @@ def _parse_issue_date(raw: str) -> date:
         return datetime(1970, 1, 1, tzinfo=UTC).date()
 
 
+# Multi-word entities: "Microsoft Azure", "Google Cloud", "Open AI"
+_MULTI_WORD_ENTITY = re.compile(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b")
+# Mixed-case proper nouns: OpenAI, DeepMind, iPhone, etc.
+_MIXED_CASE_NOUN = re.compile(r"\b[A-Z][a-zA-Z]*[A-Z][a-zA-Z]*\b")
+_ENTITY_STOP = frozenset({"the", "this", "that", "with", "from", "new", "how", "who"})
+
+
+def _extract_key_entities(text: str) -> set[str]:
+    """Extract proper nouns and multi-word entity names from text."""
+    entities: set[str] = set()
+    for m in _MULTI_WORD_ENTITY.finditer(text):
+        entities.add(m.group(0).lower())
+    for m in _MIXED_CASE_NOUN.finditer(text):
+        word = m.group(0)
+        if len(word) >= 3 and word.lower() not in _ENTITY_STOP:
+            entities.add(word.lower())
+    return entities
+
+
 def _is_probable_duplicate(
     candidate: StoryCandidate, existing: StoryCandidate, threshold: float
 ) -> bool:
     if _normalize_url(candidate.source_url) == _normalize_url(existing.source_url):
         return True
 
-    similarity = SequenceMatcher(
-        None,
-        _normalize_title(candidate.title),
-        _normalize_title(existing.title),
-    ).ratio()
+    cand_title = _normalize_title(candidate.title)
+    exist_title = _normalize_title(existing.title)
+
+    similarity = SequenceMatcher(None, cand_title, exist_title).ratio()
     if similarity >= threshold:
+        return True
+
+    # Cross-outlet dedup: compare title+summary combined text.
+    cand_summary = (candidate.summary or "").lower().strip()
+    exist_summary = (existing.summary or "").lower().strip()
+    if cand_summary and exist_summary:
+        cand_combined = f"{cand_title} {cand_summary}"
+        exist_combined = f"{exist_title} {exist_summary}"
+        if SequenceMatcher(None, cand_combined, exist_combined).ratio() >= 0.55:
+            return True
+
+    # Entity-based matching: shared company/product names + moderate title overlap.
+    cand_text = f"{candidate.title} {candidate.summary or ''}"
+    exist_text = f"{existing.title} {existing.summary or ''}"
+    shared_entities = _extract_key_entities(cand_text) & _extract_key_entities(exist_text)
+    if len(shared_entities) >= 1 and similarity >= 0.55:
         return True
 
     # Follow-up heuristic: same source and high token overlap.
     if candidate.source_name == existing.source_name:
-        candidate_tokens = set(_normalize_title(candidate.title).split())
-        existing_tokens = set(_normalize_title(existing.title).split())
+        candidate_tokens = set(cand_title.split())
+        existing_tokens = set(exist_title.split())
         if candidate_tokens and existing_tokens:
             overlap = len(candidate_tokens & existing_tokens) / len(
                 candidate_tokens | existing_tokens

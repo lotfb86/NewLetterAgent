@@ -34,4 +34,5 @@ def app_config(tmp_path: Path) -> AppConfig:
         heartbeat_channel_id=None,
         heartbeat_hour_utc=None,
         signup_allowed_origins=("https://example.com",),
+        enable_grok_research=False,
     )

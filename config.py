@@ -41,6 +41,7 @@ class AppConfig:
     heartbeat_channel_id: str | None
     heartbeat_hour_utc: int | None
     signup_allowed_origins: tuple[str, ...]
+    enable_grok_research: bool = False
 
 
 _REQUIRED_ENV_VARS = (
@@ -174,6 +175,9 @@ def get_config(load_dotenv_file: bool = True) -> AppConfig:
         heartbeat_channel_id=os.environ.get("HEARTBEAT_CHANNEL_ID"),
         heartbeat_hour_utc=heartbeat_hour_utc,
         signup_allowed_origins=_parse_csv(os.environ.get("SIGNUP_ALLOWED_ORIGINS")),
+        enable_grok_research=_parse_bool(
+            "ENABLE_GROK_RESEARCH", os.environ.get("ENABLE_GROK_RESEARCH", "false")
+        ),
     )
 
 

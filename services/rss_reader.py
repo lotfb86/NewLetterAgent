@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -10,6 +11,8 @@ from typing import Any
 
 import feedparser
 import requests
+
+logger = logging.getLogger(__name__)
 
 from config import AppConfig
 from models import Confidence, SourceTier, StoryCandidate
@@ -121,6 +124,9 @@ class RSSReader:
                     if story.published_at is not None and story.published_at < earliest:
                         continue
                     collected.append(story)
+
+        for err in errors:
+            logger.warning("RSS feed error: %s", err)
 
         if errors and not collected:
             raise ExternalServiceError("All RSS sources failed: " + "; ".join(errors))

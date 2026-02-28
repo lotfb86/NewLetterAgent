@@ -12,7 +12,11 @@ from services.schemas import NEWSLETTER_SCHEMA
 from services.validator import ContentValidationError, extract_json_payload, validate_json_payload
 
 WRITER_SYSTEM_PROMPT = (
-    "You are a newsletter writer. "
+    "You are the newsletter writer for The Ruh Digest, "
+    "the weekly AI industry newsletter published by Ruh.ai. "
+    "Ruh.ai builds human emulators and AI digital employees for enterprise clients. "
+    "Your audience includes enterprise decision-makers and investors interested in "
+    "AI agents, digital labor, and enterprise automation. "
     "Output ONLY a single JSON object. "
     "Do NOT include markdown code fences, commentary, or any text "
     "before or after the JSON object."
@@ -24,7 +28,7 @@ VOICE_STYLE_GUIDE = (
     "- Funny and witty with punchy phrasing (Milk Road-like energy).\n"
     "- Light sarcasm is allowed occasionally, but never mean-spirited.\n"
     "- Highly relatable: use plain language and everyday analogies.\n"
-    "- Entertaining to read while staying credible for clients and investors.\n"
+    "- Entertaining to read while staying credible for enterprise clients and potential investors in AI technology.\n"
     "VOICE SAFETY RULES:\n"
     "- Humor must never change facts, numbers, dates, sources, or confidence labels.\n"
     "- Punch up at hype and absurd trends, never punch down at people.\n"
@@ -36,7 +40,7 @@ VOICE_STYLE_GUIDE = (
 NEWSLETTER_JSON_SCHEMA_SNIPPET = (
     "Return a JSON object with this exact structure (no extra keys):\n"
     "{\n"
-    '  "newsletter_name": "This Week in AI",\n'
+    '  "newsletter_name": "The Ruh Digest",\n'
     '  "issue_date": "2026-02-28",\n'
     '  "subject_line": "...",\n'
     '  "preheader": "...",\n'
@@ -181,7 +185,8 @@ class NewsletterWriter:
             "RULES:\n"
             "- Preserve confidence metadata for every industry story.\n"
             "- Ensure all source URLs are absolute https links.\n"
-            "- CTA should include text and a valid https URL.\n"
+            "- CTA should invite readers to explore AI employee solutions at https://ruh.ai "
+            "or to get in touch about investment opportunities.\n"
             "- Keep writing concise enough for a newsletter, but not sterile.\n\n"
             f"{VOICE_STYLE_GUIDE}\n"
             f"{NEWSLETTER_JSON_SCHEMA_SNIPPET}\n"

@@ -61,18 +61,26 @@ def _build_runtime(config: AppConfig) -> BotRuntime:
     logger = get_logger()
     draft_manager = DraftManager(config, run_state)
     llm_client = OpenRouterClient(config)
-    context_state = ConversationState()
+    context_state = ConversationState.from_store(run_state)
 
     slack_reader = SlackReader(config)
     rss_reader = RSSReader(config)
     hn_reader = HackerNewsReader(config)
     researcher = NewsResearcher(llm_client)
+
+    grok_researcher = None
+    if config.enable_grok_research:
+        from services.grok_researcher import GrokResearcher
+
+        grok_researcher = GrokResearcher(llm_client, enabled=True)
+
     research_pipeline = ResearchPipeline(
         config=config,
         slack_reader=slack_reader,
         rss_reader=rss_reader,
         hacker_news_reader=hn_reader,
         news_researcher=researcher,
+        grok_researcher=grok_researcher,
     )
 
     planner = NewsletterPlanner(config, llm_client)
@@ -172,7 +180,7 @@ def _build_runtime(config: AppConfig) -> BotRuntime:
 def configure_template_path() -> Any:
     from pathlib import Path
 
-    return Path("templates/newsletter_base.html")
+    return Path(__file__).parent / "templates/newsletter_base.html"
 
 
 def _resolve_bot_user_id(auth_payload: Any) -> str:

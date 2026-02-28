@@ -163,7 +163,7 @@ def validate_rendered_html(html: str) -> list[str]:
         errors.append("Rendered HTML exceeds size budget")
 
     soup = BeautifulSoup(html, "html.parser")
-    if not soup.find(string=re.compile("What We've Been Up To|This Week in AI", re.IGNORECASE)):
+    if not soup.find(string=re.compile("What We've Been Up To|The Ruh Digest", re.IGNORECASE)):
         errors.append("Missing required section headers")
 
     for anchor in soup.find_all("a"):
