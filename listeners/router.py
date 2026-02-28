@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from listeners.approval import ApprovalHandler, is_approval_text
 from listeners.feedback import FeedbackHandler
@@ -59,11 +62,22 @@ class MessageDispatcher:
         user_id = str(event.get("user", "")).strip()
         message_ts = str(event.get("ts", "")).strip()
         thread_ts = str(event.get("thread_ts", "")).strip() or None
+        subtype = str(event.get("subtype", "")).strip()
 
         # Use first line only for command matching (Slack apps may append attribution)
         first_line = text.split("\n", 1)[0].strip()
 
+        logger.warning(
+            "dispatch: text=%r first_line=%r user=%s subtype=%r bot_id=%r",
+            text[:100],
+            first_line,
+            user_id,
+            subtype,
+            event.get("bot_id", ""),
+        )
+
         if self._is_self_message(event, user_id):
+            logger.warning("dispatch: filtered as self_message")
             return RoutingOutcome(action="ignore", detail="self_message")
 
         if first_line.lower() == "run":
