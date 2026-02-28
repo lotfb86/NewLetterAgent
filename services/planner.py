@@ -17,6 +17,14 @@ PLANNER_SYSTEM_PROMPT = (
     "Do not include markdown fences or prose outside the JSON object."
 )
 
+PLANNER_STYLE_GUIDANCE = (
+    "STYLE INTENT FOR DOWNSTREAM WRITING:\n"
+    "- Prioritize angles that can be explained in human, relatable language.\n"
+    "- Favor story framing with wit and personality over dry summary phrasing.\n"
+    "- Allow occasional playful sarcasm about hype cycles, not about people.\n"
+    "- Hooks should be entertaining and specific, never generic buzzword fluff.\n"
+)
+
 
 class NewsletterPlanner:
     """Generate newsletter outline JSON from team updates and story inputs."""
@@ -92,6 +100,8 @@ class NewsletterPlanner:
             "- Only include stories in the current issue window unless "
             "explicitly marked unavoidable.\n"
             "- Include confidence for each industry item.\n"
+            "- Make planned hooks and summaries support a very human, witty tone.\n\n"
+            f"{PLANNER_STYLE_GUIDANCE}\n"
             "Return a JSON object with this exact structure (no extra keys):\n"
             "{\n"
             '  "team_section": {\n'

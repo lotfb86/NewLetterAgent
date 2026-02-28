@@ -17,10 +17,12 @@ class _FakeLLM:
     def __init__(self, outputs: list[str]) -> None:
         self._outputs = outputs
         self.calls = 0
+        self.last_kwargs: dict[str, Any] = {}
 
-    def ask_claude(self, **_: Any) -> Any:
+    def ask_claude(self, **kwargs: Any) -> Any:
         output = self._outputs[min(self.calls, len(self._outputs) - 1)]
         self.calls += 1
+        self.last_kwargs = kwargs
         return type("Resp", (), {"content": output})()
 
 
@@ -84,3 +86,32 @@ def test_planner_failure_writes_dead_letter(app_config: Any) -> None:
     assert exc_info.value.dead_letter_path.exists()
     payload = exc_info.value.dead_letter_path.read_text(encoding="utf-8")
     assert '"stage": "planner"' in payload
+
+
+def test_planner_prompt_includes_style_guidance(app_config: Any) -> None:
+    llm = _FakeLLM(
+        outputs=[
+            """
+            {
+              "team_section": {"include": true, "items": []},
+              "industry_section": {"items": [{
+                "headline": "Story",
+                "hook": "Hook",
+                "why_it_matters": "Why",
+                "source_url": "https://example.com",
+                "source_name": "Example",
+                "published_at": "2026-02-27T00:00:00Z",
+                "confidence": "high"
+              }]},
+              "cta": {"text": "Reach out"}
+            }
+            """
+        ]
+    )
+    planner = NewsletterPlanner(app_config, llm)  # type: ignore[arg-type]
+    planner.create_plan(team_updates=[], industry_story_inputs=[])
+
+    prompt = str(llm.last_kwargs.get("user_prompt", ""))
+    assert "STYLE INTENT FOR DOWNSTREAM WRITING" in prompt
+    assert "very human, witty tone" in prompt
+    assert "playful sarcasm about hype cycles" in prompt

@@ -8,7 +8,7 @@ import os
 import re
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 RATE_LIMIT_WINDOW_SECONDS = 3600
@@ -34,7 +34,7 @@ class ResendContactsClient:
     """Resend contacts client wrapper for dependency injection."""
 
     def __init__(self, api_key: str) -> None:
-        resend_module = importlib.import_module("resend")
+        resend_module = cast(Any, importlib.import_module("resend"))
         # Resend SDK v2.x uses module-level api_key + module-level resources
         resend_module.api_key = api_key
         self._resend = resend_module

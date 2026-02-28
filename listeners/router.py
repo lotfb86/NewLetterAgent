@@ -8,15 +8,15 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-# Slack integrations may append inline attribution (e.g. "*Sent using* <@BOT>")
-_ATTRIBUTION_RE = re.compile(r"\s*\*Sent\s+using\*.*$", re.IGNORECASE)
-
 from listeners.approval import ApprovalHandler, is_approval_text
 from listeners.feedback import FeedbackHandler
 from listeners.updates import TeamUpdateHandler
 from services.command_controller import CommandResult
 from services.context_state import ConversationState
 from services.draft_manager import DraftManager
+
+# Slack integrations may append inline attribution (e.g. "*Sent using* <@BOT>")
+_ATTRIBUTION_RE = re.compile(r"\s*\*Sent\s+using\*.*$", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -62,7 +62,6 @@ class MessageDispatcher:
         user_id = str(event.get("user", "")).strip()
         message_ts = str(event.get("ts", "")).strip()
         thread_ts = str(event.get("thread_ts", "")).strip() or None
-        subtype = str(event.get("subtype", "")).strip()
 
         # Strip Slack app attribution and use first line for command matching
         first_line = text.split("\n", 1)[0].strip()
@@ -184,16 +183,18 @@ class MessageDispatcher:
         return RoutingOutcome(action="team_update", detail=update_outcome.status)
 
     # Slack system subtypes the bot should never process as user messages.
-    _SYSTEM_SUBTYPES = frozenset({
-        "bot_message",
-        "channel_purpose",
-        "channel_topic",
-        "channel_name",
-        "channel_join",
-        "channel_leave",
-        "channel_archive",
-        "channel_unarchive",
-    })
+    _SYSTEM_SUBTYPES = frozenset(
+        {
+            "bot_message",
+            "channel_purpose",
+            "channel_topic",
+            "channel_name",
+            "channel_join",
+            "channel_leave",
+            "channel_archive",
+            "channel_unarchive",
+        }
+    )
 
     def _is_self_message(self, event: dict[str, Any], user_id: str) -> bool:
         subtype = str(event.get("subtype", "")).strip()

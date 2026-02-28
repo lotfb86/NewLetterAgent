@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from config import AppConfig
 from services.resilience import ResiliencePolicy
@@ -38,7 +38,7 @@ class ResendSender:
 
     @staticmethod
     def _build_default_client(config: AppConfig) -> Any:
-        resend_module = importlib.import_module("resend")
+        resend_module = cast(Any, importlib.import_module("resend"))
         # Resend SDK v2.x uses module-level api_key + module-level resources
         resend_module.api_key = config.resend_api_key
         return resend_module

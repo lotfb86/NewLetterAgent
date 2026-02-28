@@ -16,6 +16,41 @@ WRITER_SYSTEM_PROMPT = (
     "Do not include markdown fences or any extra commentary."
 )
 
+VOICE_STYLE_GUIDE = (
+    "VOICE TARGET (blend):\n"
+    "- Human, conversational, and emotionally intelligent (YNAB-like warmth).\n"
+    "- Funny and witty with punchy phrasing (Milk Road-like energy).\n"
+    "- Light sarcasm is allowed occasionally, but never mean-spirited.\n"
+    "- Highly relatable: use plain language and everyday analogies.\n"
+    "- Entertaining to read while staying credible for clients and investors.\n"
+    "VOICE SAFETY RULES:\n"
+    "- Humor must never change facts, numbers, dates, sources, or confidence labels.\n"
+    "- Punch up at hype and absurd trends, never punch down at people.\n"
+    "- Never mock readers, companies, founders, or vulnerable groups.\n"
+    "- Avoid forced jokes in every sentence; keep humor natural and selective.\n"
+    "- Keep claims precise, and use 'reportedly' framing where confidence is not high.\n"
+)
+
+NEWSLETTER_JSON_SCHEMA_SNIPPET = (
+    "Return a JSON object with this exact structure (no extra keys):\n"
+    "{\n"
+    '  "newsletter_name": "This Week in AI",\n'
+    '  "issue_date": "2026-02-28",\n'
+    '  "subject_line": "...",\n'
+    '  "preheader": "...",\n'
+    '  "intro": "...",\n'
+    '  "team_updates": [{"title": "...", "summary": "..."}],\n'
+    '  "industry_stories": [{\n'
+    '    "headline": "...", "hook": "...",\n'
+    '    "why_it_matters": "...",\n'
+    '    "source_url": "https://...", "source_name": "...",\n'
+    '    "published_at": "2026-02-28",\n'
+    '    "confidence": "high|medium|low"\n'
+    "  }],\n"
+    '  "cta": {"text": "...", "url": "https://..."}\n'
+    "}\n"
+)
+
 
 class NewsletterWriter:
     """Generate newsletter JSON from planner output."""
@@ -93,7 +128,10 @@ class NewsletterWriter:
         prompt = (
             "You are revising an existing newsletter JSON payload.\n"
             "Apply only the requested feedback while preserving unchanged sections.\n"
-            "Return valid JSON only and keep all required schema fields.\n\n"
+            "Preserve the voice target and safety rules below while revising.\n\n"
+            f"{VOICE_STYLE_GUIDE}\n"
+            "Return valid JSON only and keep all required schema fields.\n"
+            f"{NEWSLETTER_JSON_SCHEMA_SNIPPET}\n"
             f"INPUT:\n{json.dumps(input_payload, indent=2, sort_keys=True)}"
         )
         attempts = self._config.max_external_retries
@@ -140,26 +178,11 @@ class NewsletterWriter:
             "Write the weekly newsletter JSON from the planning payload.\n"
             "RULES:\n"
             "- Preserve confidence metadata for every industry story.\n"
-            "- Keep tone professional, concise, and authoritative.\n"
             "- Ensure all source URLs are absolute https links.\n"
             "- CTA should include text and a valid https URL.\n"
-            "Return a JSON object with this exact structure (no extra keys):\n"
-            "{\n"
-            '  "newsletter_name": "This Week in AI",\n'
-            '  "issue_date": "2026-02-28",\n'
-            '  "subject_line": "...",\n'
-            '  "preheader": "...",\n'
-            '  "intro": "...",\n'
-            '  "team_updates": [{"title": "...", "summary": "..."}],\n'
-            '  "industry_stories": [{\n'
-            '    "headline": "...", "hook": "...",\n'
-            '    "why_it_matters": "...",\n'
-            '    "source_url": "https://...", "source_name": "...",\n'
-            '    "published_at": "2026-02-28",\n'
-            '    "confidence": "high|medium|low"\n'
-            "  }],\n"
-            '  "cta": {"text": "...", "url": "https://..."}\n'
-            "}\n\n"
+            "- Keep writing concise enough for a newsletter, but not sterile.\n\n"
+            f"{VOICE_STYLE_GUIDE}\n"
+            f"{NEWSLETTER_JSON_SCHEMA_SNIPPET}\n"
             f"INPUT:\n{json.dumps(payload, indent=2, sort_keys=True)}"
         )
 
