@@ -173,3 +173,13 @@ def test_router_strips_slack_attribution(tmp_path: Path) -> None:
     assert run.action == "manual_run"
     assert reset.action == "reset"
     assert replay.action == "replay"
+
+
+def test_router_ignores_system_subtypes(tmp_path: Path) -> None:
+    dispatcher = _build_dispatcher(tmp_path)
+
+    for subtype in ("channel_purpose", "channel_topic", "channel_join", "channel_leave"):
+        outcome = dispatcher.dispatch(
+            {"user": "U1", "text": "something", "ts": "6.0", "subtype": subtype}
+        )
+        assert outcome.action == "ignore", f"subtype={subtype} was not ignored"

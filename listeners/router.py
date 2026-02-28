@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
-
-logger = logging.getLogger(__name__)
 
 # Slack integrations may append inline attribution (e.g. "*Sent using* <@BOT>")
 _ATTRIBUTION_RE = re.compile(r"\s*\*Sent\s+using\*.*$", re.IGNORECASE)
@@ -71,17 +68,7 @@ class MessageDispatcher:
         first_line = text.split("\n", 1)[0].strip()
         command_text = _ATTRIBUTION_RE.sub("", first_line).strip()
 
-        logger.warning(
-            "dispatch: text=%r command_text=%r user=%s subtype=%r bot_id=%r",
-            text[:100],
-            command_text,
-            user_id,
-            subtype,
-            event.get("bot_id", ""),
-        )
-
         if self._is_self_message(event, user_id):
-            logger.warning("dispatch: filtered as self_message")
             return RoutingOutcome(action="ignore", detail="self_message")
 
         if command_text.lower() == "run":
@@ -196,9 +183,21 @@ class MessageDispatcher:
 
         return RoutingOutcome(action="team_update", detail=update_outcome.status)
 
+    # Slack system subtypes the bot should never process as user messages.
+    _SYSTEM_SUBTYPES = frozenset({
+        "bot_message",
+        "channel_purpose",
+        "channel_topic",
+        "channel_name",
+        "channel_join",
+        "channel_leave",
+        "channel_archive",
+        "channel_unarchive",
+    })
+
     def _is_self_message(self, event: dict[str, Any], user_id: str) -> bool:
         subtype = str(event.get("subtype", "")).strip()
-        if subtype == "bot_message":
+        if subtype in self._SYSTEM_SUBTYPES:
             return True
 
         bot_id = str(event.get("bot_id", "")).strip()
