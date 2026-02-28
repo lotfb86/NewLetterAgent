@@ -284,6 +284,15 @@ def _respond_to_outcome(*, outcome: RoutingOutcome, event: dict[str, Any], say: 
         say(text=f"Thanks. A few clarifications would help:\n{question_text}", thread_ts=thread_ts)
         return
 
+    if outcome.action == "clarification_context":
+        say(text="Thanks — context noted. ✅", thread_ts=thread_ts)
+        return
+
+    if outcome.action == "late_update_thread":
+        # User replied in a late-update thread without saying "include" —
+        # silently noted or ignore.
+        return
+
     if outcome.action == "team_update" and outcome.detail == "clear":
         say(text="Update captured. ✅", thread_ts=thread_ts)
         return
