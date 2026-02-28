@@ -154,3 +154,22 @@ def test_router_routes_replay_command(tmp_path: Path) -> None:
     replay = dispatcher.dispatch({"user": "U1", "text": "replay run-1", "ts": "4.0"})
 
     assert replay.action == "replay"
+
+
+def test_router_strips_slack_attribution(tmp_path: Path) -> None:
+    dispatcher = _build_dispatcher(tmp_path)
+
+    # Slack integrations may append "*Sent using* <@BOT_ID>" inline
+    run = dispatcher.dispatch(
+        {"user": "U1", "text": "run *Sent using* <@U09J4E03THB>", "ts": "5.0"}
+    )
+    reset = dispatcher.dispatch(
+        {"user": "U1", "text": "reset *Sent using* <@U09J4E03THB>", "ts": "5.1"}
+    )
+    replay = dispatcher.dispatch(
+        {"user": "U1", "text": "replay run-1 *Sent using* <@U09J4E03THB>", "ts": "5.2"}
+    )
+
+    assert run.action == "manual_run"
+    assert reset.action == "reset"
+    assert replay.action == "replay"

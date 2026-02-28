@@ -11,6 +11,9 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Slack integrations may append inline attribution (e.g. "*Sent using* <@BOT>")
+_ATTRIBUTION_RE = re.compile(r"\s*\*Sent\s+using\*.*$", re.IGNORECASE)
+
 from listeners.approval import ApprovalHandler, is_approval_text
 from listeners.feedback import FeedbackHandler
 from listeners.updates import TeamUpdateHandler
@@ -64,13 +67,14 @@ class MessageDispatcher:
         thread_ts = str(event.get("thread_ts", "")).strip() or None
         subtype = str(event.get("subtype", "")).strip()
 
-        # Use first line only for command matching (Slack apps may append attribution)
+        # Strip Slack app attribution and use first line for command matching
         first_line = text.split("\n", 1)[0].strip()
+        command_text = _ATTRIBUTION_RE.sub("", first_line).strip()
 
         logger.warning(
-            "dispatch: text=%r first_line=%r user=%s subtype=%r bot_id=%r",
+            "dispatch: text=%r command_text=%r user=%s subtype=%r bot_id=%r",
             text[:100],
-            first_line,
+            command_text,
             user_id,
             subtype,
             event.get("bot_id", ""),
@@ -80,7 +84,7 @@ class MessageDispatcher:
             logger.warning("dispatch: filtered as self_message")
             return RoutingOutcome(action="ignore", detail="self_message")
 
-        if first_line.lower() == "run":
+        if command_text.lower() == "run":
             result = self._on_manual_run()
             if isinstance(result, bool):
                 result = CommandResult(
@@ -92,7 +96,7 @@ class MessageDispatcher:
                 detail=result.reason,
             )
 
-        if first_line.lower() == "reset":
+        if command_text.lower() == "reset":
             result = self._on_reset()
             if isinstance(result, bool):
                 result = CommandResult(
@@ -104,7 +108,7 @@ class MessageDispatcher:
                 detail=result.reason,
             )
 
-        replay_match = re.fullmatch(r"replay\s+([\w-]+)", first_line, flags=re.IGNORECASE)
+        replay_match = re.fullmatch(r"replay\s+([\w-]+)", command_text, flags=re.IGNORECASE)
         if replay_match:
             run_id = replay_match.group(1)
             result = self._on_replay(run_id)
