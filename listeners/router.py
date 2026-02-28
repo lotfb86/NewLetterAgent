@@ -60,10 +60,13 @@ class MessageDispatcher:
         message_ts = str(event.get("ts", "")).strip()
         thread_ts = str(event.get("thread_ts", "")).strip() or None
 
+        # Use first line only for command matching (Slack apps may append attribution)
+        first_line = text.split("\n", 1)[0].strip()
+
         if self._is_self_message(event, user_id):
             return RoutingOutcome(action="ignore", detail="self_message")
 
-        if text.lower() == "run":
+        if first_line.lower() == "run":
             result = self._on_manual_run()
             if isinstance(result, bool):
                 result = CommandResult(
@@ -75,7 +78,7 @@ class MessageDispatcher:
                 detail=result.reason,
             )
 
-        if text.lower() == "reset":
+        if first_line.lower() == "reset":
             result = self._on_reset()
             if isinstance(result, bool):
                 result = CommandResult(
@@ -87,7 +90,7 @@ class MessageDispatcher:
                 detail=result.reason,
             )
 
-        replay_match = re.fullmatch(r"replay\s+([\w-]+)", text.strip(), flags=re.IGNORECASE)
+        replay_match = re.fullmatch(r"replay\s+([\w-]+)", first_line, flags=re.IGNORECASE)
         if replay_match:
             run_id = replay_match.group(1)
             result = self._on_replay(run_id)
