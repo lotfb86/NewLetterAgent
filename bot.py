@@ -15,10 +15,13 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from config import AppConfig, get_config
 from listeners.approval import ApprovalHandler
 from listeners.feedback import FeedbackHandler
+from listeners.intent import IntentClassifier
 from listeners.router import MessageDispatcher, RoutingOutcome
+from listeners.slash_commands import SlashCommandHandlers
 from listeners.updates import TeamUpdateHandler
 from scheduler import SchedulerRuntime
 from services.command_controller import CommandController, CommandResult
+from services.contact_importer import ContactImporter
 from services.context_state import ConversationState
 from services.draft_manager import DraftManager
 from services.formatter import SlackPreviewFormatter
@@ -118,6 +121,7 @@ def _build_runtime(config: AppConfig) -> BotRuntime:
     approval_handler = ApprovalHandler(draft_manager)
     feedback_handler = FeedbackHandler(draft_manager, _revision_builder)
     update_handler = TeamUpdateHandler(llm_client=llm_client, context_state=context_state)
+    intent_classifier = IntentClassifier(llm_client)
 
     command_controller = CommandController(
         run_callback=lambda: _to_command_result(
@@ -132,6 +136,46 @@ def _build_runtime(config: AppConfig) -> BotRuntime:
         replay_callback=lambda run_id: _to_command_result(orchestrator.replay_run(run_id=run_id)),
     )
 
+    contact_importer = ContactImporter(
+        resend_api_key=config.resend_api_key,
+        audience_id=config.resend_audience_id,
+    )
+
+    # --- Slash command handlers ---
+    slash_handlers = SlashCommandHandlers(
+        command_controller=command_controller,
+        approval_handler=approval_handler,
+        contact_importer=contact_importer,
+        orchestrator=orchestrator,
+        slack_client=app.client,
+        channel_id=config.newsletter_channel_id,
+    )
+
+    @app.command("/run")
+    def _cmd_run(ack: Any, respond: Any, command: dict[str, Any]) -> None:
+        slash_handlers.handle_run(ack, respond, command)
+
+    @app.command("/reset")
+    def _cmd_reset(ack: Any, respond: Any, command: dict[str, Any]) -> None:
+        slash_handlers.handle_reset(ack, respond, command)
+
+    @app.command("/replay")
+    def _cmd_replay(ack: Any, respond: Any, command: dict[str, Any]) -> None:
+        slash_handlers.handle_replay(ack, respond, command)
+
+    @app.command("/approve")
+    def _cmd_approve(ack: Any, respond: Any, command: dict[str, Any]) -> None:
+        slash_handlers.handle_approve(ack, respond, command)
+
+    @app.command("/import-contacts")
+    def _cmd_import_contacts(ack: Any, respond: Any, command: dict[str, Any]) -> None:
+        slash_handlers.handle_import_contacts(ack, respond, command)
+
+    @app.command("/help")
+    def _cmd_help(ack: Any, respond: Any, command: dict[str, Any]) -> None:
+        slash_handlers.handle_help(ack, respond, command)
+
+    # --- Message dispatcher (intent-based routing) ---
     dispatcher = MessageDispatcher(
         bot_user_id=bot_user_id,
         draft_manager=draft_manager,
@@ -139,10 +183,8 @@ def _build_runtime(config: AppConfig) -> BotRuntime:
         approval_handler=approval_handler,
         feedback_handler=feedback_handler,
         update_handler=update_handler,
-        on_manual_run=command_controller.manual_run,
-        on_reset=command_controller.reset,
+        intent_classifier=intent_classifier,
         on_include_late_update=command_controller.include_late_update,
-        on_replay=command_controller.replay,
     )
 
     @app.event("message")
@@ -197,31 +239,10 @@ def _respond_to_outcome(*, outcome: RoutingOutcome, event: dict[str, Any], say: 
     if outcome.action == "ignore":
         return
 
-    if outcome.action == "manual_run":
-        if outcome.detail == "run_completed":
-            say(text="Manual run accepted. Draft generation completed.")
-            return
-        if outcome.detail.startswith("run_locked") or outcome.detail == "run_in_progress":
-            say(text="Manual run rejected because another run is already active.")
-            return
-        say(text=f"Manual run failed: {outcome.detail}")
-        return
-
-    if outcome.action == "reset":
-        if outcome.detail == "run_completed":
-            say(text="Reset accepted. Fresh research + draft cycle completed.")
-            return
-        if outcome.detail.startswith("run_locked") or outcome.detail == "run_in_progress":
-            say(text="Reset rejected because another run is active.")
-            return
-        say(text=f"Reset failed: {outcome.detail}")
-        return
-
-    if outcome.action == "replay":
-        if outcome.detail in {"sent", "run_completed"}:
-            say(text=f"Replay accepted for `{(outcome.payload or {}).get('run_id', '')}`.")
-            return
-        say(text=f"Replay failed: {outcome.detail}")
+    if outcome.action == "agent_response":
+        response_text = (outcome.payload or {}).get("response", "")
+        if response_text:
+            say(text=response_text, thread_ts=thread_ts)
         return
 
     if outcome.action == "approval":
@@ -253,7 +274,7 @@ def _respond_to_outcome(*, outcome: RoutingOutcome, event: dict[str, Any], say: 
         if outcome.detail == "max_revisions_reached":
             say(
                 text=(
-                    "Maximum revisions reached. Edit manually or say 'reset' to run a fresh cycle."
+                    "Maximum revisions reached. Use `/reset` to run a fresh cycle."
                 ),
                 thread_ts=thread_ts,
             )

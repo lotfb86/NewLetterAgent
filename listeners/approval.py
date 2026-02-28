@@ -62,3 +62,28 @@ class ApprovalHandler:
 
         updated = self._draft_manager.mark_status(status=DraftStatus.APPROVED)
         return ApprovalOutcome(accepted=True, reason="approved", run_id=updated.run_id)
+
+    def handle_slash(self) -> ApprovalOutcome:
+        """Approve the latest pending draft without requiring thread context.
+
+        Used by the /approve slash command where there is no thread_ts.
+        """
+        current = self._draft_manager.get_current_draft()
+        if current is None:
+            return ApprovalOutcome(accepted=False, reason="no_active_draft")
+
+        if current.draft_status != DraftStatus.PENDING_REVIEW:
+            return ApprovalOutcome(
+                accepted=False,
+                reason="draft_not_pending",
+                run_id=current.run_id,
+            )
+
+        if current.draft_ts is None:
+            return ApprovalOutcome(accepted=False, reason="draft_missing_ts", run_id=current.run_id)
+
+        if self._draft_manager.is_current_draft_stale():
+            return ApprovalOutcome(accepted=False, reason="draft_stale", run_id=current.run_id)
+
+        updated = self._draft_manager.mark_status(status=DraftStatus.APPROVED)
+        return ApprovalOutcome(accepted=True, reason="approved", run_id=updated.run_id)

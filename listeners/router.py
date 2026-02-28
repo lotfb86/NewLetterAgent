@@ -10,6 +10,7 @@ from typing import Any
 
 from listeners.approval import ApprovalHandler, is_approval_text
 from listeners.feedback import FeedbackHandler
+from listeners.intent import IntentClassifier
 from listeners.updates import TeamUpdateHandler
 from services.command_controller import CommandResult
 from services.context_state import ConversationState
@@ -29,7 +30,11 @@ class RoutingOutcome:
 
 
 class MessageDispatcher:
-    """Route incoming Slack messages through ordered listener chain."""
+    """Route incoming Slack messages through ordered listener chain.
+
+    Command detection (run/reset/replay/approved) has been moved to slash commands.
+    Regular top-level messages now go through LLM-powered intent classification.
+    """
 
     def __init__(
         self,
@@ -40,10 +45,8 @@ class MessageDispatcher:
         approval_handler: ApprovalHandler,
         feedback_handler: FeedbackHandler,
         update_handler: TeamUpdateHandler,
-        on_manual_run: Callable[[], CommandResult],
-        on_reset: Callable[[], CommandResult],
+        intent_classifier: IntentClassifier,
         on_include_late_update: Callable[[str], CommandResult],
-        on_replay: Callable[[str], CommandResult] | None = None,
     ) -> None:
         self._bot_user_id = bot_user_id
         self._draft_manager = draft_manager
@@ -51,10 +54,8 @@ class MessageDispatcher:
         self._approval_handler = approval_handler
         self._feedback_handler = feedback_handler
         self._update_handler = update_handler
-        self._on_manual_run = on_manual_run
-        self._on_reset = on_reset
+        self._intent_classifier = intent_classifier
         self._on_include_late_update = on_include_late_update
-        self._on_replay = on_replay or (lambda _run_id: CommandResult(False, "unsupported"))
 
     def dispatch(self, event: dict[str, Any]) -> RoutingOutcome:
         """Route event and execute matching branch."""
@@ -63,76 +64,43 @@ class MessageDispatcher:
         message_ts = str(event.get("ts", "")).strip()
         thread_ts = str(event.get("thread_ts", "")).strip() or None
 
-        # Strip Slack app attribution and use first line for command matching
-        first_line = text.split("\n", 1)[0].strip()
-        command_text = _ATTRIBUTION_RE.sub("", first_line).strip()
-        # Also strip attribution from full text so stored updates are clean
+        # Strip Slack app attribution from full text so stored updates are clean
         clean_text = _ATTRIBUTION_RE.sub("", text).strip()
 
         if self._is_self_message(event, user_id):
             return RoutingOutcome(action="ignore", detail="self_message")
 
-        if command_text.lower() == "run":
-            result = self._on_manual_run()
-            if isinstance(result, bool):
-                result = CommandResult(
-                    accepted=result,
-                    reason="run_completed" if result else "rejected",
-                )
-            return RoutingOutcome(
-                action="manual_run",
-                detail=result.reason,
-            )
-
-        if command_text.lower() == "reset":
-            result = self._on_reset()
-            if isinstance(result, bool):
-                result = CommandResult(
-                    accepted=result,
-                    reason="run_completed" if result else "rejected",
-                )
-            return RoutingOutcome(
-                action="reset",
-                detail=result.reason,
-            )
-
-        replay_match = re.fullmatch(r"replay\s+([\w-]+)", command_text, flags=re.IGNORECASE)
-        if replay_match:
-            run_id = replay_match.group(1)
-            result = self._on_replay(run_id)
-            if isinstance(result, bool):
-                result = CommandResult(
-                    accepted=result,
-                    reason="sent" if result else "rejected",
-                )
-            return RoutingOutcome(
-                action="replay",
-                detail=result.reason,
-                payload={"run_id": run_id},
-            )
-
-        if is_approval_text(text):
-            approval_outcome = self._approval_handler.handle(message_text=text, thread_ts=thread_ts)
-            return RoutingOutcome(
-                action="approval",
-                detail=approval_outcome.reason,
-                payload={"run_id": approval_outcome.run_id},
-            )
+        # --- Thread-based routing (unchanged) ---
 
         current_draft = self._draft_manager.get_current_draft()
+
+        # Draft thread: approval check, then feedback
         if (
             thread_ts
             and current_draft is not None
             and current_draft.draft_ts is not None
             and thread_ts == current_draft.draft_ts
         ):
-            feedback_outcome = self._feedback_handler.handle(message_text=text, thread_ts=thread_ts)
+            if is_approval_text(text):
+                approval_outcome = self._approval_handler.handle(
+                    message_text=text, thread_ts=thread_ts
+                )
+                return RoutingOutcome(
+                    action="approval",
+                    detail=approval_outcome.reason,
+                    payload={"run_id": approval_outcome.run_id},
+                )
+
+            feedback_outcome = self._feedback_handler.handle(
+                message_text=text, thread_ts=thread_ts
+            )
             return RoutingOutcome(
                 action="feedback",
                 detail=feedback_outcome.reason,
                 payload={"draft_version": feedback_outcome.draft_version},
             )
 
+        # Late-update thread replies
         if thread_ts and self._update_handler.is_late_update_thread(thread_ts):
             late_thread_outcome = self._update_handler.handle_thread_reply(
                 thread_ts=thread_ts,
@@ -151,6 +119,7 @@ class MessageDispatcher:
                 )
             return RoutingOutcome(action="late_update_thread", detail=late_thread_outcome.status)
 
+        # Clarification thread replies
         if thread_ts and self._context_state.is_team_update_thread(thread_ts):
             clarification_outcome = self._update_handler.handle_thread_reply(
                 thread_ts=thread_ts,
@@ -161,28 +130,42 @@ class MessageDispatcher:
                 detail=clarification_outcome.status,
             )
 
-        posted_at = _parse_ts(message_ts)
-        is_late = self._context_state.is_late_update(posted_at) if posted_at is not None else False
+        # --- Top-level messages: intent classification ---
 
-        update_outcome = self._update_handler.handle_top_level_update(
-            message_ts=message_ts,
-            text=clean_text,
-            is_late_update=is_late,
-        )
-        if update_outcome.status == "late_update_prompt":
-            return RoutingOutcome(action="late_update_prompt", detail="late_update")
+        intent_result = self._intent_classifier.classify(clean_text)
 
-        if update_outcome.status == "clear":
-            return RoutingOutcome(action="team_update", detail="clear")
-
-        if update_outcome.status == "needs_clarification":
-            return RoutingOutcome(
-                action="team_update",
-                detail="needs_clarification",
-                payload={"questions": list(update_outcome.questions)},
+        if intent_result.intent == "team_update":
+            posted_at = _parse_ts(message_ts)
+            is_late = (
+                self._context_state.is_late_update(posted_at) if posted_at is not None else False
             )
 
-        return RoutingOutcome(action="team_update", detail=update_outcome.status)
+            update_outcome = self._update_handler.handle_top_level_update(
+                message_ts=message_ts,
+                text=clean_text,
+                is_late_update=is_late,
+            )
+            if update_outcome.status == "late_update_prompt":
+                return RoutingOutcome(action="late_update_prompt", detail="late_update")
+
+            if update_outcome.status == "clear":
+                return RoutingOutcome(action="team_update", detail="clear")
+
+            if update_outcome.status == "needs_clarification":
+                return RoutingOutcome(
+                    action="team_update",
+                    detail="needs_clarification",
+                    payload={"questions": list(update_outcome.questions)},
+                )
+
+            return RoutingOutcome(action="team_update", detail=update_outcome.status)
+
+        # help_request, conversation, command_request — respond with LLM text
+        return RoutingOutcome(
+            action="agent_response",
+            detail=intent_result.intent,
+            payload={"response": intent_result.response},
+        )
 
     # Slack system subtypes the bot should never process as user messages.
     _SYSTEM_SUBTYPES = frozenset(

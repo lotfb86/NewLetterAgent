@@ -9,6 +9,7 @@ from typing import Any
 
 from listeners.approval import ApprovalHandler
 from listeners.feedback import FeedbackHandler
+from listeners.intent import IntentClassifier, IntentResult
 from listeners.router import MessageDispatcher
 from listeners.updates import TeamUpdateHandler
 from services.command_controller import CommandResult
@@ -18,7 +19,35 @@ from services.run_state import RunStateStore
 
 
 class _FakeLLM:
-    def ask_claude(self, **_: Any) -> Any:
+    """Fake LLM that always returns CLEAR for team update validation."""
+
+    def ask_claude(self, **kwargs: Any) -> Any:
+        # Check if this is an intent classification call (has the system prompt)
+        system_prompt = kwargs.get("system_prompt", "")
+        if "CAPABILITIES" in (system_prompt or ""):
+            # Intent classifier call — default to team_update
+            return type("Resp", (), {"content": '{"intent": "team_update", "response": "TEAM_UPDATE"}'})()
+        # Team update validation call
+        return type("Resp", (), {"content": "CLEAR"})()
+
+
+class _HelpLLM:
+    """Fake LLM that classifies everything as help_request."""
+
+    def ask_claude(self, **kwargs: Any) -> Any:
+        system_prompt = kwargs.get("system_prompt", "")
+        if "CAPABILITIES" in (system_prompt or ""):
+            return type("Resp", (), {"content": '{"intent": "help_request", "response": "You can use /run to start."}'})()
+        return type("Resp", (), {"content": "CLEAR"})()
+
+
+class _CommandRequestLLM:
+    """Fake LLM that classifies everything as command_request."""
+
+    def ask_claude(self, **kwargs: Any) -> Any:
+        system_prompt = kwargs.get("system_prompt", "")
+        if "CAPABILITIES" in (system_prompt or ""):
+            return type("Resp", (), {"content": '{"intent": "command_request", "response": "Use /run to start a manual run."}'})()
         return type("Resp", (), {"content": "CLEAR"})()
 
 
@@ -32,7 +61,9 @@ class _CommandRecorder:
         return CommandResult(accepted=self.accepted, reason="ok")
 
 
-def _build_dispatcher(tmp_path: Path) -> MessageDispatcher:
+def _build_dispatcher(
+    tmp_path: Path, *, llm: Any | None = None
+) -> MessageDispatcher:
     from config import AppConfig
 
     config = AppConfig(
@@ -72,12 +103,15 @@ def _build_dispatcher(tmp_path: Path) -> MessageDispatcher:
     context_state = ConversationState()
     context_state.set_collection_cutoff(datetime.now(UTC) - timedelta(minutes=5))
 
+    llm_client = llm or _FakeLLM()
+
     approval_handler = ApprovalHandler(draft_manager)
     feedback_handler = FeedbackHandler(
         draft_manager,
         revision_builder=lambda _text: ({"x": 2}, "<p>new</p>", "100.2"),
     )
-    update_handler = TeamUpdateHandler(_FakeLLM(), context_state)  # type: ignore[arg-type]
+    update_handler = TeamUpdateHandler(llm_client, context_state)  # type: ignore[arg-type]
+    intent_classifier = IntentClassifier(llm_client)  # type: ignore[arg-type]
 
     return MessageDispatcher(
         bot_user_id="UBOT",
@@ -86,10 +120,8 @@ def _build_dispatcher(tmp_path: Path) -> MessageDispatcher:
         approval_handler=approval_handler,
         feedback_handler=feedback_handler,
         update_handler=update_handler,
-        on_manual_run=_CommandRecorder(True),
-        on_reset=_CommandRecorder(True),
+        intent_classifier=intent_classifier,
         on_include_late_update=_CommandRecorder(True),
-        on_replay=_CommandRecorder(True),
     )
 
 
@@ -101,17 +133,40 @@ def test_router_ignores_self_message(tmp_path: Path) -> None:
     assert outcome.action == "ignore"
 
 
-def test_router_routes_manual_run_and_reset(tmp_path: Path) -> None:
+def test_router_classifies_team_update(tmp_path: Path) -> None:
+    """'run' is no longer a command — it goes through intent classification."""
     dispatcher = _build_dispatcher(tmp_path)
 
-    run_outcome = dispatcher.dispatch({"user": "U1", "text": "run", "ts": "1.0"})
-    reset_outcome = dispatcher.dispatch({"user": "U1", "text": "reset", "ts": "1.1"})
+    # With intent classifier, "run" is classified as team_update by default FakeLLM
+    outcome = dispatcher.dispatch({"user": "U1", "text": "We shipped a new feature", "ts": "1.0"})
 
-    assert run_outcome.action == "manual_run"
-    assert reset_outcome.action == "reset"
+    assert outcome.action == "team_update"
+    assert outcome.detail == "clear"
 
 
-def test_router_routes_approval_and_feedback(tmp_path: Path) -> None:
+def test_router_classifies_help_request(tmp_path: Path) -> None:
+    """Help requests get routed to agent_response."""
+    dispatcher = _build_dispatcher(tmp_path, llm=_HelpLLM())
+
+    outcome = dispatcher.dispatch({"user": "U1", "text": "How do I add subscribers?", "ts": "1.0"})
+
+    assert outcome.action == "agent_response"
+    assert outcome.detail == "help_request"
+    assert "/run" in outcome.payload["response"]
+
+
+def test_router_classifies_command_request(tmp_path: Path) -> None:
+    """Typing 'run' as text now goes through intent classifier, not direct command."""
+    dispatcher = _build_dispatcher(tmp_path, llm=_CommandRequestLLM())
+
+    outcome = dispatcher.dispatch({"user": "U1", "text": "run the newsletter", "ts": "1.0"})
+
+    assert outcome.action == "agent_response"
+    assert outcome.detail == "command_request"
+    assert "/run" in outcome.payload["response"]
+
+
+def test_router_routes_approval_in_draft_thread(tmp_path: Path) -> None:
     dispatcher = _build_dispatcher(tmp_path)
 
     approval = dispatcher.dispatch(
@@ -147,33 +202,6 @@ def test_router_handles_late_update_prompt_and_include(tmp_path: Path) -> None:
         }
     )
     assert include.action == "late_update_include"
-
-
-def test_router_routes_replay_command(tmp_path: Path) -> None:
-    dispatcher = _build_dispatcher(tmp_path)
-
-    replay = dispatcher.dispatch({"user": "U1", "text": "replay run-1", "ts": "4.0"})
-
-    assert replay.action == "replay"
-
-
-def test_router_strips_slack_attribution(tmp_path: Path) -> None:
-    dispatcher = _build_dispatcher(tmp_path)
-
-    # Slack integrations may append "*Sent using* <@BOT_ID>" inline
-    run = dispatcher.dispatch(
-        {"user": "U1", "text": "run *Sent using* <@U09J4E03THB>", "ts": "5.0"}
-    )
-    reset = dispatcher.dispatch(
-        {"user": "U1", "text": "reset *Sent using* <@U09J4E03THB>", "ts": "5.1"}
-    )
-    replay = dispatcher.dispatch(
-        {"user": "U1", "text": "replay run-1 *Sent using* <@U09J4E03THB>", "ts": "5.2"}
-    )
-
-    assert run.action == "manual_run"
-    assert reset.action == "reset"
-    assert replay.action == "replay"
 
 
 def test_router_strips_attribution_from_stored_update_text(tmp_path: Path) -> None:
