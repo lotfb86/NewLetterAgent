@@ -11,11 +11,11 @@ class _FakeBroadcasts:
     def create(self, payload: dict[str, Any]) -> dict[str, Any]:
         return {"id": "b_123", **payload}
 
-    def send(self, broadcast_id: str) -> dict[str, Any]:
-        return {"id": broadcast_id, "status": "sent"}
+    def send(self, params: dict[str, Any]) -> dict[str, Any]:
+        return {"id": params["broadcast_id"], "status": "sent"}
 
-    def get(self, broadcast_id: str) -> dict[str, Any]:
-        return {"id": broadcast_id, "status": "queued"}
+    def get(self, params: dict[str, Any]) -> dict[str, Any]:
+        return {"id": params["broadcast_id"], "status": "queued"}
 
 
 class _FakeResendClient:

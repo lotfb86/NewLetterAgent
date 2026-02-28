@@ -93,7 +93,7 @@ class ResendSender:
             }
 
         def _operation() -> Any:
-            return self._client.Broadcasts.send(broadcast_id)
+            return self._client.Broadcasts.send({"broadcast_id": broadcast_id})
 
         response = self._resilience.execute(_operation)
         return _to_dict(response)
@@ -114,7 +114,7 @@ class ResendSender:
             }
 
         def _operation() -> Any:
-            return broadcasts_cls.get(broadcast_id)
+            return broadcasts_cls.get({"broadcast_id": broadcast_id})
 
         response = self._resilience.execute(_operation)
         return _to_dict(response)

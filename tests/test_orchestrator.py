@@ -136,8 +136,9 @@ class _FakeSender:
         from_email: str,
         subject: str,
         html: str,
+        reply_to: str | None = None,
     ) -> Any:
-        del audience_id, from_email, subject, html
+        del audience_id, from_email, subject, html, reply_to
         self.created += 1
         return type(
             "BroadcastResult",
