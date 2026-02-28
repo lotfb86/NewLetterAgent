@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Maximum number of stories to include in the planner prompt to avoid
 # bloated payloads that degrade model output quality.
-_MAX_PLANNER_STORIES = 12
+_MAX_PLANNER_STORIES = 10
 
 # Truncate individual story summaries beyond this length (characters).
 _MAX_SUMMARY_CHARS = 300
@@ -147,6 +147,8 @@ class NewsletterPlanner:
             "- Make planned hooks and summaries support a very human, witty tone.\n"
             "- Prioritize stories most relevant to our audience: AI agents, digital labor, "
             "enterprise automation, human emulation, and AI employee developments.\n"
+            "- Select exactly 6 to 8 stories. Do NOT include all input stories. "
+            "Pick only the most relevant to digital labor, AI workforce, and enterprise automation.\n"
             "- Frame stories through the lens of business impact and investment opportunity.\n\n"
             f"{PLANNER_STYLE_GUIDANCE}\n"
             "Return a JSON object with this exact structure (no extra keys):\n"

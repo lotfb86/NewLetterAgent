@@ -35,6 +35,7 @@ PLANNER_SCHEMA: dict[str, object] = {
                 "items": {
                     "type": "array",
                     "minItems": 1,
+                    "maxItems": 8,
                     "items": {
                         "type": "object",
                         "required": [
@@ -109,6 +110,7 @@ NEWSLETTER_SCHEMA: dict[str, object] = {
         "industry_stories": {
             "type": "array",
             "minItems": 1,
+            "maxItems": 8,
             "items": {
                 "type": "object",
                 "required": [

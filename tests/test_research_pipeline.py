@@ -206,6 +206,32 @@ def test_secondary_dedupe_entity_based_matching() -> None:
     assert len(deduped) == 1
 
 
+def test_secondary_dedupe_numeric_claim_entity_match() -> None:
+    """Stories sharing a dollar amount and company name are deduped as same event."""
+    from dataclasses import replace
+
+    stories = [
+        _story(
+            "OpenAI raises $110B in one of the largest private funding rounds in history",
+            "https://openai.com/blog/funding",
+            source="openai.com",
+        ),
+        _story(
+            "TechCrunch confirms Amazon, Nvidia, and SoftBank as OpenAI $110B investors",
+            "https://techcrunch.com/openai-investors",
+            source="techcrunch.com",
+        ),
+    ]
+    stories[0] = replace(stories[0], summary="OpenAI has raised $110B from major investors")
+    stories[1] = replace(
+        stories[1], summary="Amazon and Nvidia invest billions in OpenAI funding round"
+    )
+
+    deduped = secondary_dedupe(stories)
+
+    assert len(deduped) == 1
+
+
 def test_research_pipeline_collects_and_ranks(app_config: Any) -> None:
     now = datetime.now(UTC)
     slack_reader = _FakeSlackReader(

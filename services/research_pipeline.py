@@ -18,6 +18,7 @@ from services.quality import (
     apply_canonicalization_and_tiering,
     enforce_numeric_claim_verification,
     enforce_recency,
+    extract_numeric_claims,
     to_planning_inputs,
 )
 from services.rss_reader import RSSReader
@@ -328,6 +329,13 @@ def _is_probable_duplicate(
     exist_text = f"{existing.title} {existing.summary or ''}"
     shared_entities = _extract_key_entities(cand_text) & _extract_key_entities(exist_text)
     if len(shared_entities) >= 1 and similarity >= 0.55:
+        return True
+
+    # Numeric claim + entity dedup: same dollar amount AND shared entity
+    # strongly implies same event from different outlets.
+    cand_claims = set(extract_numeric_claims(cand_text))
+    exist_claims = set(extract_numeric_claims(exist_text))
+    if (cand_claims & exist_claims) and shared_entities:
         return True
 
     # Follow-up heuristic: same source and high token overlap.

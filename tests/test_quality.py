@@ -119,3 +119,30 @@ def test_citation_validation_and_planning_payload() -> None:
     assert errors == []
     assert payload[0]["confidence"] == "high"
     assert payload[0]["source_tier"] == 1
+
+
+def test_canonicalize_resolves_google_news_url() -> None:
+    """Google News RSS article URLs are resolved via HTTP HEAD."""
+    from unittest.mock import MagicMock, patch
+
+    mock_response = MagicMock()
+    mock_response.url = "https://techcrunch.com/actual-article"
+
+    with patch("services.quality.requests.head", return_value=mock_response):
+        result = canonicalize_url(
+            "https://news.google.com/rss/articles/CBMiZmh0dHBz"
+        )
+
+    assert "techcrunch.com/actual-article" in result
+
+
+def test_canonicalize_google_news_url_fallback_on_failure() -> None:
+    """Google News URL resolution falls back to original on network error."""
+    from unittest.mock import patch
+
+    with patch("services.quality.requests.head", side_effect=Exception("timeout")):
+        result = canonicalize_url(
+            "https://news.google.com/rss/articles/CBMiZmh0dHBz"
+        )
+
+    assert "news.google.com" in result

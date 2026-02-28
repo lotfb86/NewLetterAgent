@@ -220,6 +220,8 @@ class NewsletterWriter:
             "- Ensure all source URLs are absolute https links.\n"
             "- CTA should invite readers to explore AI employee solutions at https://ruh.ai "
             "or to get in touch about investment opportunities.\n"
+            "- The newsletter must contain exactly 6 to 8 industry stories. "
+            "Include only the most relevant stories from the plan.\n"
             "- Keep writing concise enough for a newsletter, but not sterile.\n\n"
             f"{VOICE_STYLE_GUIDE}\n"
             f"{NEWSLETTER_JSON_SCHEMA_SNIPPET}\n"

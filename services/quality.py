@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
+import requests
+
 from models import Confidence, SourceTier, StoryCandidate
+
+logger = logging.getLogger(__name__)
 
 _TRACKING_QUERY_PREFIXES = ("utm_",)
 _TRACKING_QUERY_KEYS = {
@@ -129,7 +134,7 @@ def enforce_numeric_claim_verification(stories: list[StoryCandidate]) -> list[St
     """Promote or demote confidence for stories with numeric claims."""
     grouped_by_claim: dict[str, list[StoryCandidate]] = {}
     for story in stories:
-        claims = _extract_numeric_claims(f"{story.title} {story.summary or ''}")
+        claims = extract_numeric_claims(f"{story.title} {story.summary or ''}")
         if not claims:
             continue
         for claim in claims:
@@ -137,7 +142,7 @@ def enforce_numeric_claim_verification(stories: list[StoryCandidate]) -> list[St
 
     verified: list[StoryCandidate] = []
     for story in stories:
-        claims = _extract_numeric_claims(f"{story.title} {story.summary or ''}")
+        claims = extract_numeric_claims(f"{story.title} {story.summary or ''}")
         if not claims:
             verified.append(story)
             continue
@@ -267,12 +272,49 @@ def _max_confidence(left: Confidence, right: Confidence) -> Confidence:
     return left if ranking[left] >= ranking[right] else right
 
 
+def _resolve_google_news_url(url: str) -> str | None:
+    """Resolve a Google News RSS redirect URL via HTTP HEAD.
+
+    Google News RSS article URLs use base64-encoded protobuf paths
+    (``/rss/articles/CBMi...``) that cannot be decoded from the URL
+    string alone.  An HTTP HEAD with redirect following reveals the
+    final destination URL.
+
+    Returns the resolved URL, or ``None`` if resolution fails.
+    """
+    try:
+        response = requests.head(
+            url,
+            allow_redirects=True,
+            timeout=5,
+            headers={"User-Agent": "Mozilla/5.0 (newsletter-agent)"},
+        )
+        final_url = response.url
+        if final_url and urlparse(final_url).netloc.lower() != "news.google.com":
+            return final_url
+    except Exception:  # noqa: BLE001
+        logger.debug("Failed to resolve Google News URL: %s", url, exc_info=True)
+    return None
+
+
 def _unwrap_redirect(parsed: Any, query_params: dict[str, list[str]]) -> str | None:
     if not parsed.netloc:
         return None
     host = parsed.netloc.lower()
     if host not in {"t.co", "l.facebook.com", "news.google.com"}:
         return None
+
+    # Google News RSS article URLs use path-encoded protobuf, not query params.
+    if host == "news.google.com" and "/rss/articles/" in (parsed.path or ""):
+        original_url = urlunparse((
+            parsed.scheme or "https",
+            parsed.netloc,
+            parsed.path,
+            parsed.params,
+            parsed.query,
+            parsed.fragment,
+        ))
+        return _resolve_google_news_url(original_url)
 
     for key in _REDIRECT_QUERY_KEYS:
         values = query_params.get(key)
@@ -281,5 +323,5 @@ def _unwrap_redirect(parsed: Any, query_params: dict[str, list[str]]) -> str | N
     return None
 
 
-def _extract_numeric_claims(text: str) -> tuple[str, ...]:
+def extract_numeric_claims(text: str) -> tuple[str, ...]:
     return tuple(match.group(0).replace(" ", "") for match in _NUMERIC_CLAIM_PATTERN.finditer(text))

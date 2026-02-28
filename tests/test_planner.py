@@ -11,6 +11,8 @@ import pytest
 from models import TeamUpdate
 from services.composition import CompositionFailure
 from services.planner import NewsletterPlanner
+from services.schemas import PLANNER_SCHEMA
+from services.validator import validate_json_payload, ContentValidationError
 
 
 class _FakeLLM:
@@ -115,3 +117,30 @@ def test_planner_prompt_includes_style_guidance(app_config: Any) -> None:
     assert "STYLE INTENT FOR DOWNSTREAM WRITING" in prompt
     assert "very human, witty tone" in prompt
     assert "playful sarcasm about hype cycles" in prompt
+
+
+def test_planner_schema_rejects_more_than_8_stories() -> None:
+    """Schema enforces maxItems: 8 for industry stories."""
+    _story = lambda i: {
+        "headline": f"Story {i}",
+        "hook": "Hook",
+        "why_it_matters": "Why",
+        "source_url": f"https://example.com/{i}",
+        "source_name": "Example",
+        "published_at": "2026-02-28",
+        "confidence": "high",
+    }
+    valid_payload = {
+        "team_section": {"include": True, "items": []},
+        "industry_section": {"items": [_story(i) for i in range(8)]},
+        "cta": {"text": "Reach out"},
+    }
+    validate_json_payload(valid_payload, PLANNER_SCHEMA)  # should not raise
+
+    invalid_payload = {
+        "team_section": {"include": True, "items": []},
+        "industry_section": {"items": [_story(i) for i in range(9)]},
+        "cta": {"text": "Reach out"},
+    }
+    with pytest.raises(ContentValidationError, match="too long"):
+        validate_json_payload(invalid_payload, PLANNER_SCHEMA)
