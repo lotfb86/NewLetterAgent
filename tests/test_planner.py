@@ -115,8 +115,8 @@ def test_planner_prompt_includes_style_guidance(app_config: Any) -> None:
 
     prompt = str(llm.last_kwargs.get("user_prompt", ""))
     assert "STYLE INTENT FOR DOWNSTREAM WRITING" in prompt
-    assert "very human, witty tone" in prompt
-    assert "playful sarcasm about hype cycles" in prompt
+    assert "plain language" in prompt
+    assert "BANNED WORDS" in prompt or "NEVER use these words" in prompt
 
 
 def test_planner_schema_rejects_more_than_8_stories() -> None:

@@ -35,10 +35,16 @@ PLANNER_SYSTEM_PROMPT = (
 
 PLANNER_STYLE_GUIDANCE = (
     "STYLE INTENT FOR DOWNSTREAM WRITING:\n"
-    "- Prioritize angles that can be explained in human, relatable language.\n"
-    "- Favor story framing with wit and personality over dry summary phrasing.\n"
-    "- Allow occasional playful sarcasm about hype cycles, not about people.\n"
-    "- Hooks should be entertaining and specific, never generic buzzword fluff.\n"
+    "- Headlines should be angles, not summaries. What's the most interesting "
+    "thing about this story? Lead with that.\n"
+    "- Hooks should start with the surprise, not the setup. If you'd say "
+    "'wait, what?' — that's the opening.\n"
+    "- 'Why it matters' should be an actual opinion about business impact, "
+    "not a restated summary.\n"
+    "- Use plain language a smart 7th-grader would understand.\n"
+    "- NEVER use these words: delve, tapestry, landscape, leverage, pivotal, "
+    "robust, crucial, moreover, furthermore, utilize, paradigm, synergy, "
+    "ecosystem, groundbreaking, revolutionize, game-changer.\n"
 )
 
 

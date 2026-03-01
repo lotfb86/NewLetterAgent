@@ -150,7 +150,7 @@ def test_writer_prompt_includes_new_voice_contract(app_config: Any) -> None:
     )
 
     prompt = str(llm.last_kwargs.get("user_prompt", ""))
-    assert "Human, conversational" in prompt
-    assert "Funny and witty" in prompt
-    assert "Light sarcasm is allowed occasionally" in prompt
+    assert "YOUR VOICE" in prompt
+    assert "sharp, well-read friend" in prompt
+    assert "BANNED WORDS" in prompt
     assert "Punch up at hype and absurd trends" in prompt
