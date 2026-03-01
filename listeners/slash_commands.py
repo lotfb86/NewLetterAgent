@@ -13,24 +13,25 @@ from services.contact_importer import ContactImporter
 logger = logging.getLogger(__name__)
 
 _HELP_TEXT = """\
-*Ruh Digest — Available Commands*
-
-• `/run` — Start a manual research + draft generation cycle
-• `/reset` — Clear current state and run a fresh cycle
-• `/replay <run_id>` — Replay a previously failed run
-• `/approve` — Approve the latest pending draft for email send
-• `/import-contacts <emails>` — Bulk import subscribers
-• `/help` — Show this help message
+*The Ruh Digest — Newsletter Agent*
 
 *How it works:*
-1. Post team updates as regular messages in the channel
-2. Use `/run` or `/reset` to generate a newsletter draft
-3. Review the draft and give feedback by replying in the draft thread
-4. Use `/approve` to send the newsletter to all subscribers
+:one: *Collect* — Post team updates as messages in this channel anytime during the week.
+:two: *Research* — Every Thursday at 9am CT, the agent automatically collects team updates from the last 7 days, researches AI industry news, and generates a newsletter draft. (You can also trigger this manually with `/run`.)
+:three: *Review* — The draft is posted here for review. Reply in the draft thread with feedback to request changes — the agent will revise automatically.
+:four: *Send* — When the draft looks good, say "approved" in the thread or use `/approve`. The newsletter goes out to all subscribers immediately.
+
+*Commands:*
+• `/run` — Manually trigger a research + draft cycle
+• `/reset` — Clear current draft and start a fresh cycle
+• `/replay <run_id>` — Retry a previously failed run
+• `/approve` — Approve the current draft and send it
+• `/import-contacts <emails>` — Add subscribers (inline or CSV upload)
+• `/help` — Show this message
 
 *Importing contacts:*
-Upload a CSV file (with an "email" column), then run `/import-contacts`.
-Or provide emails inline: `/import-contacts user@example.com, user2@example.com`
+Inline: `/import-contacts user@example.com, user2@example.com`
+CSV: Upload a file with an "email" column, then run `/import-contacts`
 """
 
 
