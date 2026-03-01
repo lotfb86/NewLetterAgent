@@ -18,9 +18,26 @@
           color: #e8edf3 !important;
           border-color: #283142 !important;
         }
+        .card h1,
+        .card h2 {
+          color: #f0f4f8 !important;
+        }
+        .card p {
+          color: #dce4ef !important;
+        }
+        .card .story-title a {
+          color: #a78bfa !important;
+        }
         .muted,
         .meta {
           color: #b8c4d6 !important;
+        }
+        .cta-box {
+          background: #1a2332 !important;
+          border-color: #243347 !important;
+        }
+        .cta-box p {
+          color: #dce4ef !important;
         }
         a {
           color: #8ecbff !important;
@@ -105,7 +122,7 @@
                         {% for story in industry_stories %}
                           <tr>
                             <td style="padding:0 0 16px 0;">
-                              <p style="margin:0 0 6px 0;font-size:16px;font-weight:600;color:#0f1720;">
+                              <p class="story-title" style="margin:0 0 6px 0;font-size:16px;font-weight:600;color:#0f1720;">
                                 <a href="{{ story.source_url }}" style="color:#7c3aed;text-decoration:none;">{{ story.headline }}</a>
                               </p>
                               <p style="margin:0 0 6px 0;font-size:15px;line-height:1.6;color:#1b2735;">
@@ -132,6 +149,7 @@
                         cellspacing="0"
                         cellpadding="0"
                         border="0"
+                        class="cta-box"
                         style="background:#edf5ff;border-radius:10px;border:1px solid #d0e5ff;"
                       >
                         <tr>
