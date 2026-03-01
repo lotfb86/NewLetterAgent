@@ -16,6 +16,10 @@ venv/
 # Runtime data
 data/run_state.db
 data/run_state.db.bak
+data/*.lock
+data/qa_newsletter_*
+data/archive/*.json
+data/failures/*.json
 
 # Playwright CLI artifacts
 .playwright-cli/
